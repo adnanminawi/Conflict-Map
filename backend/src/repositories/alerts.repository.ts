@@ -1,0 +1,1 @@
+// alerts: SQL queries only.

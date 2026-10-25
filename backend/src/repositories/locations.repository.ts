@@ -1,0 +1,1 @@
+// locations: SQL queries only.

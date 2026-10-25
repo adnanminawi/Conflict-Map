@@ -1,0 +1,1 @@
+// news: TypeScript types/interfaces.
