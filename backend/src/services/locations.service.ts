@@ -1,1 +1,5 @@
-// locations: business logic. Never touches req/res.
+import * as locationsRepository from '../repositories/locations.repository';
+
+export async function getLocations() {
+  return locationsRepository.findAll();
+}

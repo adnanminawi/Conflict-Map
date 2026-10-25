@@ -12,3 +12,14 @@ export interface MapEvent {
   color: string | null
   location_name: string | null
 }
+export interface MapLocation {
+  id: number
+  name: string
+  country_code: string
+  description: string | null
+  lng: number
+  lat: number
+  type_code: string // 'military_base' | 'airport' | 'naval_base'
+  type_name: string
+  icon: string
+}

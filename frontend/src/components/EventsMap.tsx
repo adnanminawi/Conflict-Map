@@ -2,8 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { fetchEvents } from '../api/events'
+import { fetchLocations } from '../api/locations'
+import { addLocationMarkers } from '../map/locationsLayer'
+import { buildPopup } from '../map/popup'
 import type { MapEvent } from '../types'
 
+// MapTiler map. The key lives in frontend/.env.local (VITE_MAPTILER_KEY).
+// Other styles: 'streets-v2' (normal map), 'satellite' (imagery without labels).
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined
 const MAP_STYLE = `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`
 const START_CENTER: [number, number] = [53, 30] // [lng, lat] — Iran / Gulf
@@ -16,7 +21,7 @@ export default function EventsMap() {
   const markersRef = useRef<maplibregl.Marker[]>([])
   const [status, setStatus] = useState<string | null>('Loading events…')
 
-  // 1. Create the map once
+  // 1. Create the map once, then add the bases / airports layer
   useEffect(() => {
     if (!MAPTILER_KEY) {
       setStatus('Missing VITE_MAPTILER_KEY in frontend/.env.local')
@@ -30,6 +35,13 @@ export default function EventsMap() {
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     mapRef.current = map
+
+     
+    fetchLocations()
+      .then((locations) => {
+        if (mapRef.current === map) addLocationMarkers(map, locations)
+      })
+      .catch((err) => console.error('Could not load bases and airports', err))
 
     return () => {
       map.remove()
@@ -57,7 +69,7 @@ export default function EventsMap() {
       markersRef.current = events.map((event) =>
         new maplibregl.Marker({ color: event.color ?? '#E53935' })
           .setLngLat([event.lng, event.lat])
-          .setPopup(new maplibregl.Popup({ offset: 25 }).setDOMContent(buildPopup(event)))
+          .setPopup(new maplibregl.Popup({ offset: 25 }).setDOMContent(eventPopup(event)))
           .addTo(map),
       )
     }
@@ -78,23 +90,10 @@ export default function EventsMap() {
   )
 }
 
-// Built with textContent (not innerHTML) so event text can never inject HTML.
-function buildPopup(event: MapEvent): HTMLElement {
-  const root = document.createElement('div')
-  root.className = 'popup'
-
-  const add = (tag: string, text: string, className?: string) => {
-    const el = document.createElement(tag)
-    el.textContent = text
-    if (className) el.className = className
-    root.appendChild(el)
-  }
-
-  add('h3', event.title)
-  add('p', event.type_name, 'type')
-  add('p', new Date(event.occurred_at).toLocaleString())
-  if (event.location_name) add('p', `Target: ${event.location_name}`)
-  if (event.description) add('p', event.description)
-
-  return root
+function eventPopup(event: MapEvent): HTMLElement {
+  return buildPopup(event.title, event.type_name, [
+    new Date(event.occurred_at).toLocaleString(),
+    event.location_name ? `Target: ${event.location_name}` : null,
+    event.description,
+  ])
 }
