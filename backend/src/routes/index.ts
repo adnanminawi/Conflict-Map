@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../config/db';
 import { eventsRoutes } from './events.routes';
+import { locationsRoutes } from './locations.routes';
 
 export const routes = Router();
 
@@ -14,3 +15,4 @@ routes.get('/health', async (_req, res) => {
 });
 
 routes.use('/events', eventsRoutes);
+routes.use('/locations', locationsRoutes);
