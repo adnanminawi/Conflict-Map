@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../config/db';
+import { eventsRoutes } from './events.routes';
 
 export const routes = Router();
 
@@ -12,6 +13,4 @@ routes.get('/health', async (_req, res) => {
   }
 });
 
-// Feature routes are mounted here as they are written, e.g.:
-// routes.use('/auth', authRoutes);
-// routes.use('/events', eventsRoutes);
+routes.use('/events', eventsRoutes);

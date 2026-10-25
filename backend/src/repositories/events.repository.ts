@@ -1,7 +1,6 @@
-// events: SQL queries only.
-import type { RowDataPacket } from 'mysql2';
+import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { db } from '../config/db';
-import type { PublicEvent } from '../types/events.types';
+import type { CreateEventInput, PublicEvent } from '../types/events.types';
 
 export async function findConfirmedSince(since: Date): Promise<PublicEvent[]> {
   const [rows] = await db.execute<(PublicEvent & RowDataPacket)[]>(
@@ -18,4 +17,22 @@ export async function findConfirmedSince(since: Date): Promise<PublicEvent[]> {
     [since],
   );
   return rows;
+}
+export async function insert(input: CreateEventInput, createdBy: number): Promise<number> {
+  const [result] = await db.execute<ResultSetHeader>(
+    `INSERT INTO events
+       (event_type_id, title, description, occurred_at, geom, location_id, status, created_by)
+     VALUES (?, ?, ?, ?, ST_GeomFromText(?, 4326, 'axis-order=long-lat'), ?, ?, ?)`,
+    [
+      input.event_type_id,
+      input.title,
+      input.description,
+      input.occurred_at,
+      `POINT(${input.lng} ${input.lat})`,
+      input.location_id,
+      input.status,
+      createdBy,
+    ],
+  );
+  return result.insertId;
 }
