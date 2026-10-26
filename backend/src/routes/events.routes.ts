@@ -1,9 +1,15 @@
 import { Router } from 'express';
-import { getEvents, getEventTypes, createEvent } from '../controllers/events.controller';
+import { getEvents, getEventTypes, getAdminEvents, createEvent, updateEventStatus, deleteEvent, } from '../controllers/events.controller';
 import { requireAdmin } from '../utils/requireAdmin';
 
 export const eventsRoutes = Router();
 
-eventsRoutes.get('/', getEvents);                     // public
-eventsRoutes.get('/types', getEventTypes);            // public (used by the admin form)
-eventsRoutes.post('/', requireAdmin, createEvent);    // admin only
+// Public
+eventsRoutes.get('/', getEvents);
+eventsRoutes.get('/types', getEventTypes);
+
+// Admin only
+eventsRoutes.get('/admin', requireAdmin, getAdminEvents);
+eventsRoutes.post('/', requireAdmin, createEvent);
+eventsRoutes.patch('/:id/status', requireAdmin, updateEventStatus);
+eventsRoutes.delete('/:id', requireAdmin, deleteEvent);

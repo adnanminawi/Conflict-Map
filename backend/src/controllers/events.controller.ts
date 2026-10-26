@@ -3,9 +3,6 @@ import * as eventsService from '../services/events.service';
 import type { CreateEventInput, EventStatus } from '../types/events.types';
 import { AppError } from '../utils/AppError';
 
-// TEMPORARY: no login yet, so every event is saved as admin 1.
-// Replace with the logged-in admin's id once auth is written.
-
 const STATUSES: EventStatus[] = ['unverified', 'confirmed', 'false'];
 const FIVE_MIN_MS = 5 * 60 * 1000;
 
@@ -19,7 +16,7 @@ export async function getEvents(_req: Request, res: Response, next: NextFunction
   }
 }
 
-// POST /api/events — create an event
+// GET /api/events/types — list of event types (for the admin form)
 export async function getEventTypes(_req: Request, res: Response, next: NextFunction) {
   try {
     res.json(await eventsService.getEventTypes());
@@ -37,6 +34,52 @@ export async function createEvent(req: Request, res: Response, next: NextFunctio
   } catch (err) {
     next(err);
   }
+}
+
+// GET /api/events/admin?status=unverified  (admin only; no status = all)
+export async function getAdminEvents(req: Request, res: Response, next: NextFunction) {
+  try {
+    const status = req.query.status as EventStatus | undefined;
+    if (status && !STATUSES.includes(status)) {
+      throw AppError.badRequest(`status must be one of: ${STATUSES.join(', ')}`);
+    }
+    res.json(await eventsService.getAdminEvents(status));
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PATCH /api/events/:id/status  { status }  (admin only)
+export async function updateEventStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = readId(req.params.id);
+    const status = req.body?.status;
+    if (!STATUSES.includes(status)) {
+      throw AppError.badRequest(`status must be one of: ${STATUSES.join(', ')}`);
+    }
+    await eventsService.setEventStatus(id, status);
+    res.json({ id, status });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/events/:id  (admin only)
+export async function deleteEvent(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = readId(req.params.id);
+    await eventsService.deleteEvent(id);
+    res.status(204).end(); // 204 = done, nothing to send back
+  } catch (err) {
+    next(err);
+  }
+}
+
+// The :id from the URL must be a positive whole number
+function readId(value: string): number {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id < 1) throw AppError.badRequest('Invalid event id');
+  return id;
 }
 
 // Checks the request body and returns clean, typed data. Throws 400 on bad input.

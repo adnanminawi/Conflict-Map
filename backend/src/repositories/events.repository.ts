@@ -1,6 +1,6 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { db } from '../config/db';
-import type { CreateEventInput, PublicEvent } from '../types/events.types';
+import type { AdminEvent, CreateEventInput, EventStatus, PublicEvent } from '../types/events.types';
 
 export async function findConfirmedSince(since: Date): Promise<PublicEvent[]> {
   const [rows] = await db.execute<(PublicEvent & RowDataPacket)[]>(
@@ -42,4 +42,35 @@ export async function findTypes(): Promise<{ id: number; name: string }[]> {
     'SELECT id, name FROM event_types ORDER BY name',
   );
   return rows;
+}
+
+// Admin list: the 100 most recent events, optionally only one status.
+export async function findRecentForAdmin(status?: EventStatus): Promise<AdminEvent[]> {
+  const [rows] = await db.execute<(AdminEvent & RowDataPacket)[]>(
+    `SELECT e.id, e.title, e.occurred_at, e.status,
+            t.name AS type_name,
+            a.username AS created_by_username
+       FROM events e
+       JOIN event_types t ON t.id = e.event_type_id
+       JOIN admins a ON a.id = e.created_by
+      WHERE (? IS NULL OR e.status = ?)
+      ORDER BY e.occurred_at DESC
+      LIMIT 100`,
+    [status ?? null, status ?? null],
+  );
+  return rows;
+}
+export async function updateStatus(id: number, status: EventStatus): Promise<number> {
+  const [result] = await db.execute<ResultSetHeader>(
+    'UPDATE events SET status = ? WHERE id = ?',
+    [status, id],
+  );
+  return result.affectedRows;
+}
+
+// Returns how many rows were deleted (0 = no event with that id).
+// Links in event_news are removed automatically (ON DELETE CASCADE).
+export async function deleteById(id: number): Promise<number> {
+  const [result] = await db.execute<ResultSetHeader>('DELETE FROM events WHERE id = ?', [id]);
+  return result.affectedRows;
 }
