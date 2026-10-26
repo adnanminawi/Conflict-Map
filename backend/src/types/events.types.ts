@@ -25,3 +25,12 @@ export interface CreateEventInput {
   location_id: number | null;
   status: EventStatus;
 }
+
+export interface AdminEvent {
+  id: number;
+  title: string;
+  occurred_at: Date;
+  status: EventStatus;
+  type_name: string;
+  created_by_username: string;
+}

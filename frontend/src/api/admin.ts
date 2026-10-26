@@ -1,6 +1,6 @@
 // Calls used by the admin page.
 import { api } from './client'
-import type { EventType, NewEvent } from '../types'
+import type { AdminEvent, EventStatus, EventType, NewEvent } from '../types'
 
 export async function login(username: string, password: string): Promise<string> {
   const { data } = await api.post<{ token: string }>('/auth/login', { username, password })
@@ -16,4 +16,16 @@ export async function fetchEventTypes(): Promise<EventType[]> {
 export async function createEvent(event: NewEvent): Promise<number> {
   const { data } = await api.post<{ id: number }>('/events', event)
   return data.id;
+}
+export async function fetchAdminEvents(status?: EventStatus): Promise<AdminEvent[]> {
+  const { data } = await api.get<AdminEvent[]>('/events/admin', { params: { status } })
+  return data
+}
+
+export async function updateEventStatus(id: number, status: EventStatus): Promise<void> {
+  await api.patch(`/events/${id}/status`, { status })
+}
+
+export async function deleteEvent(id: number): Promise<void> {
+  await api.delete(`/events/${id}`)
 }
