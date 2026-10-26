@@ -1,3 +1,16 @@
+/* Colors used everywhere — change them here */
+:root {
+  --bg: #0e1217;
+  --card: #161b22;
+  --border: #2a313b;
+  --text: #e6e9ee;
+  --muted: #8b95a3;
+  --accent: #e5484d;
+  --accent-hover: #f05a5f;
+  --input: #0e1217;
+  --success: #3fb27f;
+}
+
 html,
 body,
 #root {
@@ -11,17 +24,76 @@ body,
   height: 100%;
 }
 
-.status {
+/* ---------- Map page overlays ---------- */
+.map-panel {
   position: absolute;
+  z-index: 1;
+  background: rgba(14, 18, 23, 0.85);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: #e6e9ee;
+  font-size: 13px;
+}
+
+.map-header {
+  top: 12px;
+  left: 12px;
+  padding: 12px 14px;
+}
+
+.map-subtitle {
+  margin-top: 4px;
+  color: #8b95a3;
+}
+
+.map-legend {
+  bottom: 28px;
+  left: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-row img {
+  width: 18px;
+  height: 18px;
+}
+
+/* Small red teardrop, like the event markers */
+.legend-pin {
+  width: 12px;
+  height: 12px;
+  margin: 0 3px;
+  background: #e53935;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+}
+
+.status {
   top: 12px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 14px;
-  z-index: 1;
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+/* On phones: put the status message under the header */
+@media (max-width: 600px) {
+  .status {
+    top: 76px;
+    left: 12px;
+    transform: none;
+    white-space: normal;
+    right: 60px;
+  }
 }
 
 .popup h3 {
@@ -36,4 +108,203 @@ body,
 
 .popup .type {
   font-weight: 600;
+}
+
+/* ---------- Admin page ---------- */
+.admin-page {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Top bar (shown when logged in) */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topbar a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.topbar a:hover {
+  color: var(--text);
+}
+
+/* Brand: red "live" dot + name */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.2);
+}
+
+/* Centered content */
+.admin-content {
+  display: flex;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+/* The card that holds a form */
+.card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card.narrow {
+  max-width: 380px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.muted {
+  color: var(--muted);
+  margin: -8px 0 4px;
+  font-size: 14px;
+}
+
+.section-title {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Fields */
+.card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.card input,
+.card select,
+.card textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.card input:focus,
+.card select:focus,
+.card textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.2);
+}
+
+/* Makes the calendar icon visible on dark backgrounds */
+.card input[type='datetime-local'] {
+  color-scheme: dark;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.row label {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Buttons */
+.btn {
+  padding: 11px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn:hover {
+  background: var(--accent-hover);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-ghost {
+  padding: 7px 14px;
+  font-size: 14px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.btn-ghost:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* Messages */
+.error,
+.success {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.error {
+  color: #ff9b9e;
+  background: rgba(229, 72, 77, 0.12);
+  border: 1px solid rgba(229, 72, 77, 0.35);
+}
+
+.success {
+  color: #8fe0b8;
+  background: rgba(63, 178, 127, 0.12);
+  border: 1px solid rgba(63, 178, 127, 0.35);
 }
