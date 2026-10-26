@@ -6,6 +6,7 @@ import { fetchLocations } from '../api/locations'
 import { addLocationMarkers } from '../map/locationsLayer'
 import { buildPopup } from '../map/popup'
 import type { MapEvent } from '../types'
+import MapLegend from '../components/MapLegend'
 
 // MapTiler map. The key lives in frontend/.env.local (VITE_MAPTILER_KEY).
 // Other styles: 'streets-v2' (normal map), 'satellite' (imagery without labels).
@@ -20,6 +21,7 @@ export default function EventsMap() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<maplibregl.Marker[]>([])
   const [status, setStatus] = useState<string | null>('Loading events…')
+  const [eventCount, setEventCount] = useState(0)
 
   // 1. Create the map once, then add the bases / airports layer
   useEffect(() => {
@@ -58,6 +60,7 @@ export default function EventsMap() {
         const events = await fetchEvents()
         if (cancelled || !mapRef.current) return
         drawMarkers(mapRef.current, events)
+        setEventCount(events.length)
         setStatus(events.length === 0 ? 'No confirmed events in the last 7 days' : null)
       } catch {
         if (!cancelled) setStatus('Could not load events — is the backend running?')
@@ -85,7 +88,20 @@ export default function EventsMap() {
   return (
     <>
       <div ref={containerRef} className="map" />
-      {status && <div className="status">{status}</div>}
+
+      {/* Top-left: name + how many events are shown */}
+      <div className="map-panel map-header">
+        <div className="brand">
+          <span className="live-dot" /> Conflict Map
+        </div>
+        <div className="map-subtitle">
+          {eventCount} confirmed {eventCount === 1 ? 'event' : 'events'} · last 7 days
+        </div>
+      </div>
+
+      <MapLegend />
+
+      {status && <div className="map-panel status">{status}</div>}
     </>
   )
 }

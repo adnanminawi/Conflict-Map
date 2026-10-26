@@ -23,3 +23,31 @@ export interface MapLocation {
   type_name: string
   icon: string
 }
+export interface EventType {
+  id: number
+  name: string
+}
+
+export interface NewEvent {
+  title: string
+  description: string
+  event_type_id: number
+  lat: number
+  lng: number
+  occurred_at: string // ISO date in UTC
+  status: 'unverified' | 'confirmed' | 'false'
+}
+export interface EventType {
+  id: number
+  name: string
+}
+
+export interface NewEvent {
+  title: string
+  description: string
+  event_type_id: number
+  lat: number
+  lng: number
+  occurred_at: string // ISO date in UTC
+  status: 'unverified' | 'confirmed' | 'false'
+}
