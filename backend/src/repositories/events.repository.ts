@@ -36,3 +36,10 @@ export async function insert(input: CreateEventInput, createdBy: number): Promis
   );
   return result.insertId;
 }
+// All event types (id + name), for the admin form's dropdown.
+export async function findTypes(): Promise<{ id: number; name: string }[]> {
+  const [rows] = await db.execute<({ id: number; name: string } & RowDataPacket)[]>(
+    'SELECT id, name FROM event_types ORDER BY name',
+  );
+  return rows;
+}

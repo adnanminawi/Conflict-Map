@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../config/db';
+import { authRoutes } from './auth.routes';
 import { eventsRoutes } from './events.routes';
 import { locationsRoutes } from './locations.routes';
 
@@ -14,5 +15,6 @@ routes.get('/health', async (_req, res) => {
   }
 });
 
+routes.use('/auth', authRoutes);
 routes.use('/events', eventsRoutes);
 routes.use('/locations', locationsRoutes);

@@ -8,6 +8,10 @@ export async function getPublicEvents(days: number) {
   const since = new Date(Date.now() - days * DAY_MS);
   return eventsRepository.findConfirmedSince(since);
 }
+
+export async function getEventTypes() {
+  return eventsRepository.findTypes();
+}
 export async function createEvent(input: CreateEventInput, adminId: number) {
   try {
     const id = await eventsRepository.insert(input, adminId);
