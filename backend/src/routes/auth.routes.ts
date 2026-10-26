@@ -1,1 +1,6 @@
-// auth: URL definitions + middlewares (auth, validate). No logic.
+import { Router } from 'express';
+import { login } from '../controllers/auth.controller';
+
+export const authRoutes = Router();
+
+authRoutes.post('/login', login);

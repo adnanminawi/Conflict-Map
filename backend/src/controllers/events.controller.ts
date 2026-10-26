@@ -5,7 +5,6 @@ import { AppError } from '../utils/AppError';
 
 // TEMPORARY: no login yet, so every event is saved as admin 1.
 // Replace with the logged-in admin's id once auth is written.
-const TEMP_ADMIN_ID = 1;
 
 const STATUSES: EventStatus[] = ['unverified', 'confirmed', 'false'];
 const FIVE_MIN_MS = 5 * 60 * 1000;
@@ -21,10 +20,19 @@ export async function getEvents(_req: Request, res: Response, next: NextFunction
 }
 
 // POST /api/events — create an event
+export async function getEventTypes(_req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await eventsService.getEventTypes());
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/events — create an event (admin only; requireAdmin sets res.locals.adminId)
 export async function createEvent(req: Request, res: Response, next: NextFunction) {
   try {
     const input = readCreateEventBody(req.body);
-    const result = await eventsService.createEvent(input, TEMP_ADMIN_ID);
+    const result = await eventsService.createEvent(input, res.locals.adminId);
     res.status(201).json(result);
   } catch (err) {
     next(err);
