@@ -7,6 +7,9 @@ import { addLocationMarkers } from '../map/locationsLayer'
 import { buildPopup } from '../map/popup'
 import type { MapEvent } from '../types'
 import MapLegend from '../components/MapLegend'
+import { fetchLayers } from '../api/layers'
+import { addShapeLayers } from '../map/shapesLayer'
+
 
 // MapTiler map. The key lives in frontend/.env.local (VITE_MAPTILER_KEY).
 // Other styles: 'streets-v2' (normal map), 'satellite' (imagery without labels).
@@ -44,6 +47,14 @@ export default function EventsMap() {
         if (mapRef.current === map) addLocationMarkers(map, locations)
       })
       .catch((err) => console.error('Could not load bases and airports', err))
+
+      map.on('load', () => {
+      fetchLayers()
+        .then((layers) => {
+          if (mapRef.current === map) addShapeLayers(map, layers)
+        })
+        .catch((err) => console.error('Could not load frontlines', err))
+    })
 
     return () => {
       map.remove()

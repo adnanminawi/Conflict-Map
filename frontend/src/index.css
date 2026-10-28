@@ -450,3 +450,53 @@ body,
     align-items: flex-start;
   }
 }
+/* ---------- KML import ---------- */
+.card input[type='file'] {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.import-summary {
+  padding: 12px 14px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 196, 107, 0.35);
+  background: rgba(245, 196, 107, 0.08);
+}
+
+.import-summary.done {
+  border-color: rgba(63, 178, 127, 0.35);
+  background: rgba(63, 178, 127, 0.08);
+}
+
+.import-summary ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.row .btn {
+  flex: 1;
+}
+/* Small half-transparent square in the legend, like the areas on the map */
+.legend-area {
+  width: 14px;
+  height: 12px;
+  margin: 0 2px;
+  background: rgba(229, 72, 77, 0.35);
+  border: 2px solid #e5484d;
+  border-radius: 2px;
+}
+
+/* Two cards on top of each other (Frontlines tab) */
+.stack {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.card input[type='date'] {
+  color-scheme: dark;
+}
