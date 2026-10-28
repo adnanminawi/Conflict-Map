@@ -2,6 +2,7 @@
 export function buildPopup(title: string, subtitle: string, lines: (string | null)[]) {
   const box = document.createElement('div')
   box.className = 'popup'
+  box.dir = 'auto'
 
   // Title
   const titleEl = document.createElement('h3')

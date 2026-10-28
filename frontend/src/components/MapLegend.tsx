@@ -10,6 +10,9 @@ export default function MapLegend() {
         <span className="legend-pin" /> Event (strike, drone…)
       </div>
       <div className="legend-row">
+        <span className="legend-area" /> Frontline / fighting area
+      </div>
+      <div className="legend-row">
         <img src={airportIcon} alt="" /> Airport
       </div>
       <div className="legend-row">

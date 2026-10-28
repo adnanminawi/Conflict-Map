@@ -1,4 +1,6 @@
 // Same shape as GET /api/events returns.
+import type { FeatureCollection } from 'geojson'
+
 export interface MapEvent {
   id: number
   title: string
@@ -52,4 +54,57 @@ export interface AdminEvent {
   status: EventStatus
   type_name: string
   created_by_username: string
+}
+export interface LocationType {
+  id: number
+  code: string // 'military_base' | 'airport' | 'naval_base'
+  name: string
+}
+
+// What a KML import did, or would do in a preview (POST /api/locations/import).
+export interface ImportSummary {
+  dryRun: boolean
+  found: number
+  saved: number
+  duplicates: number
+  notPoints: number
+  invalid: number
+  autoNamed: number
+}
+export interface KmlImportInput {
+  file: File
+  type: string // location type code, e.g. 'military_base'
+  country: string // 2-letter code, e.g. 'IR'
+  dryRun: boolean // true = preview only, nothing is saved
+}
+export interface MapLayer {
+  id: number
+  name: string // e.g. "Yemen frontlines"
+  snapshot_date: string // "2026-10-24"
+  geojson: FeatureCollection
+}
+
+// One saved version, for the admin list (GET /api/layers/versions).
+export interface LayerVersion {
+  id: number
+  name: string
+  snapshot_date: string
+  shape_count: number
+  created_by_username: string
+}
+
+// What the admin sends to upload a layer.
+export interface LayerImportInput {
+  file: File
+  name: string
+  date: string // "YYYY-MM-DD"
+}
+
+// What the upload did (POST /api/layers/import).
+export interface LayerImportResult {
+  id: number
+  replaced: boolean // same name + date existed → it was overwritten
+  areas: number
+  lines: number
+  skippedPoints: number
 }

@@ -3,9 +3,11 @@ import LoginForm from '../components/LoginForm'
 import EventForm from '../components/EventForm'
 import EventList from '../components/EventList'
 import { TOKEN_KEY } from '../api/client'
+import KmlImport from '../components/KmlImport'
+import LayerImport from '../components/LayerImport'
 
+type Tab = 'list' | 'add' | 'bases' | 'frontlines'
 
-type Tab = 'list' | 'add'
 
 // The admin page: shows the login form, or the admin tools once logged in.
 export default function AdminPage() {
@@ -47,6 +49,12 @@ export default function AdminPage() {
           <button className={tab === 'add' ? 'tab active' : 'tab'} onClick={() => setTab('add')}>
             Add event
           </button>
+          <button className={tab === 'bases' ? 'tab active' : 'tab'} onClick={() => setTab('bases')}>
+            Bases
+          </button>
+          <button className={tab === 'frontlines' ? 'tab active' : 'tab'} onClick={() => setTab('frontlines')}>
+            Frontlines
+          </button>
         </nav>
 
         <div className="topbar-links">
@@ -58,7 +66,10 @@ export default function AdminPage() {
       </header>
 
       <main className="admin-content">
-        {tab === 'list' ? <EventList onLoggedOut={handleLogout} /> : <EventForm onLoggedOut={handleLogout} />}
+        {tab === 'list' && <EventList onLoggedOut={handleLogout} />}
+        {tab === 'add' && <EventForm onLoggedOut={handleLogout} />}
+        {tab === 'bases' && <KmlImport onLoggedOut={handleLogout} />}
+        {tab === 'frontlines' && <LayerImport onLoggedOut={handleLogout} />}
       </main>
     </div>
   )
