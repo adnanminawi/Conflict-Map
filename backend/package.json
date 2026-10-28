@@ -9,26 +9,27 @@
     "start": "node dist/src/server.js",
     "import:kml": "tsx scripts/importKml.ts",
     "create-admin": "tsx scripts/createAdmin.ts"
-    
   },
   "dependencies": {
     "@tmcw/togeojson": "^5.8.1",
     "@xmldom/xmldom": "^0.8.15",
-    "adm-zip": "^0.5.18",
+    "adm-zip": "^0.6.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.11.3",
-    "zod": "^3.23.8"
+    "multer": "^2.5.0",
+    "mysql2": "^3.11.3"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/geojson": "^7946.0.16",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.3.0",
     "@types/node": "^20.16.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"

@@ -2,6 +2,7 @@ import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
 import { routes } from './routes';
 import { AppError } from './utils/AppError';
+import multer from 'multer';
 
 export const app = express();
 
@@ -14,6 +15,10 @@ app.use('/api', routes);
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ error: err.message });
+    return;
+  }
+  if (err instanceof multer.MulterError) {
+    res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'File is too big (max 10 MB)' : err.message });
     return;
   }
   console.error(err);

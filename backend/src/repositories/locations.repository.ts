@@ -15,6 +15,7 @@ export async function findAll(): Promise<MapLocation[]> {
   return rows;
 }
 
+
 // --- Used by the KML import script ---
 
 // Finds the id of a location type by its code, e.g. 'military_base'. null = not found.
@@ -52,4 +53,10 @@ export async function insert(loc: {
      VALUES (?, ?, ?, ST_GeomFromText(?, 4326, 'axis-order=long-lat'), ?)`,
     [loc.typeId, loc.name, loc.countryCode, `POINT(${loc.lng} ${loc.lat})`, loc.description],
   );
+}
+export async function findTypes(): Promise<{ id: number; code: string; name: string }[]> {
+  const [rows] = await db.execute<({ id: number; code: string; name: string } & RowDataPacket)[]>(
+    'SELECT id, code, name FROM location_types ORDER BY name',
+  );
+  return rows;
 }

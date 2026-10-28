@@ -3,6 +3,7 @@ import { db } from '../config/db';
 import { authRoutes } from './auth.routes';
 import { eventsRoutes } from './events.routes';
 import { locationsRoutes } from './locations.routes';
+import { layersRoutes } from './layers.routes';
 
 export const routes = Router();
 
@@ -18,3 +19,4 @@ routes.get('/health', async (_req, res) => {
 routes.use('/auth', authRoutes);
 routes.use('/events', eventsRoutes);
 routes.use('/locations', locationsRoutes);
+routes.use('/layers', layersRoutes);
