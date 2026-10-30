@@ -3,10 +3,17 @@ import militaryBaseIcon from '../assets/icons/military_base.png'
 import navalBaseIcon from '../assets/icons/naval_base.png'
 import fightingIcon from '../assets/icons/fighting.png'
 import explosionIcon from '../assets/icons/explosion.png'
+import { ALERT_COLORS } from '../map/alertsLayer'
 // The small box in the corner that explains what each symbol means.
 export default function MapLegend() {
   return (
     <div className="map-panel map-legend">
+      <div className="legend-row">
+        <span className="legend-alert" style={{ background: ALERT_COLORS.rockets }} /> Siren: rockets (last hour)
+      </div>
+      <div className="legend-row">
+        <span className="legend-alert" style={{ background: ALERT_COLORS.drone }} /> Siren: drone (last hour)
+      </div>
       <div className="legend-row">
         <span className="legend-pin" /> Event (strike, drone…)
       </div>
