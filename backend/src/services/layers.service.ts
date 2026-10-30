@@ -1,7 +1,8 @@
 import * as layersRepository from '../repositories/layers.repository';
-import type { ImportLayerInput, ImportLayerResult } from '../types/layers.types';
+import type { ImportLayerInput, SaveLayerInput, SaveLayerResult } from '../types/layers.types';
 import { AppError } from '../utils/AppError';
 import { parseKmlShapes } from '../utils/kml';
+import { cleanShapes, type CleanShapes } from '../utils/shapes';
 
 export async function getLatestLayers() {
   return layersRepository.findLatest();
@@ -11,34 +12,33 @@ export async function getLayerVersions() {
   return layersRepository.findVersions();
 }
 
-// Reads the areas and lines from the file and saves them as one version of the layer.
-export async function importLayer(input: ImportLayerInput, adminId: number): Promise<ImportLayerResult> {
-  const parsed = parseKmlShapes(input.file, input.fileName);
+// Uploaded KML/KMZ file → one version of the layer
+export async function importLayer(input: ImportLayerInput, adminId: number): Promise<SaveLayerResult> {
+  const shapes = parseKmlShapes(input.file, input.fileName);
+  return saveVersion(input.name, input.snapshotDate, shapes, adminId);
+}
 
-  if (parsed.geojson.features.length === 0) {
-    throw AppError.badRequest(
-      parsed.skippedPoints > 0
-        ? 'This file only has pins. Pins are events or bases, not frontlines.'
-        : 'No areas or lines found. Is this a valid KML/KMZ file?',
-    );
-  }
+// Shapes drawn in the map editor → one version of the layer
+export async function saveLayer(input: SaveLayerInput, adminId: number): Promise<SaveLayerResult> {
+  const shapes = cleanShapes(input.features);
+  return saveVersion(input.name, input.snapshotDate, shapes, adminId);
+}
 
-  // Same layer name + same date uploaded again → replace it (e.g. fixing a mistake). Otherwise → new version.
-  let id = await layersRepository.findIdByNameAndDate(input.name, input.snapshotDate);
+// Used by both: same name + same date → replace that version. Otherwise → new version.
+async function saveVersion( name: string,snapshotDate: string,shapes: CleanShapes, adminId: number,): Promise<SaveLayerResult> {
+  if (shapes.features.length === 0) throw AppError.badRequest('There are no shapes to save');
+
+  const geojson = { type: 'FeatureCollection' as const, features: shapes.features };
+
+  let id = await layersRepository.findIdByNameAndDate(name, snapshotDate);
   const replaced = id !== null;
   if (id !== null) {
-    await layersRepository.replaceShapes(id, parsed.geojson, adminId);
+    await layersRepository.replaceShapes(id, geojson, adminId);
   } else {
-    id = await layersRepository.insert(input.name, input.snapshotDate, parsed.geojson, adminId);
+    id = await layersRepository.insert(name, snapshotDate, geojson, adminId);
   }
 
-  return {
-    id,
-    replaced,
-    areas: parsed.areas,
-    lines: parsed.lines,
-    skippedPoints: parsed.skippedPoints,
-  };
+  return { id, replaced, areas: shapes.areas, lines: shapes.lines, icons: shapes.icons };
 }
 
 export async function deleteLayerVersion(id: number) {

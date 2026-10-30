@@ -45,7 +45,7 @@ export default function LayerImport({ onLoggedOut }: Props) {
     setBusy(true)
     try {
       const result = await importLayer({ file, name: name.trim(), date })
-      setMessage(`Saved: ${result.areas} areas, ${result.lines} lines, ${result.skippedPoints} pins skipped.`)
+      setMessage(`Saved: ${result.areas} areas, ${result.lines} lines, ${result.icons} icons.`)
       await load()
     } catch (err) {
       handleError(err)

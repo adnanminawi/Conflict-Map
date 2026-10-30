@@ -1,5 +1,4 @@
-// Same shape as GET /api/events returns.
-import type { FeatureCollection } from 'geojson'
+import type { Feature, FeatureCollection } from 'geojson'
 
 export interface MapEvent {
   id: number
@@ -100,11 +99,18 @@ export interface LayerImportInput {
   date: string // "YYYY-MM-DD"
 }
 
-// What the upload did (POST /api/layers/import).
-export interface LayerImportResult {
+// What the map editor sends (POST /api/layers).
+export interface SaveLayerInput {
+  name: string
+  date: string // "YYYY-MM-DD"
+  features: Feature[]
+}
+
+// What a save or upload did (POST /api/layers and /api/layers/import).
+export interface SaveLayerResult {
   id: number
   replaced: boolean // same name + date existed → it was overwritten
   areas: number
   lines: number
-  skippedPoints: number
+  icons: number // icons + text labels
 }

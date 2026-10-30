@@ -500,3 +500,106 @@ body,
 .card input[type='date'] {
   color-scheme: dark;
 }
+/* ---------- Map editor (admins only) ---------- */
+.editor {
+  top: 12px;
+  right: 52px; /* left of the zoom buttons */
+  width: 270px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.editor-title {
+  font-weight: 700;
+}
+
+.editor-note {
+  margin: 0;
+  color: #8b95a3;
+  font-size: 12px;
+}
+
+.editor-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tool {
+  padding: 5px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #e6e9ee;
+  background: transparent;
+  border: 1px solid #2a313b;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: #2a313b;
+}
+
+.tool.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.editor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #2a313b;
+}
+
+.editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #8b95a3;
+}
+
+.editor input,
+.editor select,
+.editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #e6e9ee;
+  background: #0e1217;
+  border: 1px solid #2a313b;
+  border-radius: 6px;
+  color-scheme: dark;
+}
+
+.editor input[type='color'] {
+  height: 32px;
+  padding: 2px;
+}
+
+.editor .editor-check {
+  flex-direction: row;
+  align-items: center;
+}
+
+.editor .editor-check input {
+  width: auto;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.editor-actions .btn {
+  flex: 1;
+}
