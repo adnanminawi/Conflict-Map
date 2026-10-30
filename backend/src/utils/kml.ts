@@ -4,8 +4,9 @@
 import AdmZip from 'adm-zip';
 import { DOMParser } from '@xmldom/xmldom';
 import { kml } from '@tmcw/togeojson';
-import type { Feature, FeatureCollection, Geometry } from 'geojson';
+import type { Feature } from 'geojson';
 import { AppError } from './AppError';
+import { cleanShapes, cleanText, type CleanShapes } from './shapes';
 
 const MAX_KML_BYTES = 20 * 1024 * 1024; // 20 MB after unzipping
 
@@ -37,16 +38,6 @@ function readFeatures(file: Buffer, fileName: string): Feature[] {
   return kml(dom as any).features as Feature[];
 }
 
-// KML descriptions often contain HTML. Keep plain text only.
-function cleanText(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const text = value
-    .replace(/[\u200e\u200f\u202a-\u202e]/g, '') // invisible direction marks (common in Arabic text)
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return text === '' ? null : text;
-}
 
 // ---------- Points (bases / airports) ----------
 
@@ -91,66 +82,6 @@ export function parseKml(file: Buffer, fileName: string): ParsedKml {
 }
 
 // ---------- Shapes (areas / lines) ----------
-
-export interface ParsedShapes {
-  geojson: FeatureCollection; // what we save and send to the map
-  areas: number;
-  lines: number;
-  skippedPoints: number; // pins in the file (they are events, not shapes)
-}
-
-// Only keep a color if it really is a color, e.g. "#a52714"
-function readColor(value: unknown): string | null {
-  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : null;
-}
-
-// Only keep a number if it is inside [min, max]
-function readNumber(value: unknown, min: number, max: number): number | null {
-  return typeof value === 'number' && value >= min && value <= max ? value : null;
-}
-
-// Keep only the properties the map needs (name, text, colors). Drops everything else.
-function cleanShapeProperties(props: Record<string, unknown> | null) {
-  const p = props ?? {};
-  return {
-    name: cleanText(p.name)?.slice(0, 200) ?? null,
-    description: cleanText(p.description)?.slice(0, 2000) ?? null,
-    stroke: readColor(p.stroke),
-    'stroke-width': readNumber(p['stroke-width'], 0.5, 20),
-    'stroke-opacity': readNumber(p['stroke-opacity'], 0, 1),
-    fill: readColor(p.fill),
-    'fill-opacity': readNumber(p['fill-opacity'], 0, 1),
-  };
-}
-
-export function parseKmlShapes(file: Buffer, fileName: string): ParsedShapes {
-  const result: ParsedShapes = {
-    geojson: { type: 'FeatureCollection', features: [] },
-    areas: 0,
-    lines: 0,
-    skippedPoints: 0,
-  };
-
-  for (const feature of readFeatures(file, fileName)) {
-    if (!feature.geometry) continue;
-    const properties = cleanShapeProperties(feature.properties);
-
-    // A KML "MultiGeometry" becomes a GeometryCollection: split it into separate shapes
-    const geometries: Geometry[] =
-      feature.geometry.type === 'GeometryCollection' ? feature.geometry.geometries : [feature.geometry];
-
-    for (const geometry of geometries) {
-      if (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon') {
-        result.areas++;
-      } else if (geometry.type === 'LineString' || geometry.type === 'MultiLineString') {
-        result.lines++;
-      } else {
-        result.skippedPoints++; // Point / MultiPoint
-        continue;
-      }
-      result.geojson.features.push({ type: 'Feature', properties, geometry });
-    }
-  }
-
-  return result;
+export function parseKmlShapes(file: Buffer, fileName: string): CleanShapes {
+  return cleanShapes(readFeatures(file, fileName));
 }

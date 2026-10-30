@@ -12,10 +12,9 @@ export async function findLatest(): Promise<MapLayer[]> {
        FROM map_layers l
       WHERE l.snapshot_date = (SELECT MAX(m.snapshot_date)
                                  FROM map_layers m
-                                WHERE m.name = l.name)
-      ORDER BY l.name`,
+                                WHERE m.name = l.name)`,
   );
-  return rows;
+  return rows.sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
 }
 
 // Every version of every layer, newest first (for the admin list).

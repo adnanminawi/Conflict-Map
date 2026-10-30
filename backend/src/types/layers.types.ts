@@ -16,6 +16,11 @@ export interface LayerVersion {
   shape_count: number;
   created_by_username: string;
 }
+export interface SaveLayerInput {
+  name: string;
+  snapshotDate: string; // "YYYY-MM-DD"
+  features: unknown[]; // checked and cleaned by utils/shapes.ts before saving
+}
 
 // What the admin sends to upload a layer.
 export interface ImportLayerInput {
@@ -24,12 +29,11 @@ export interface ImportLayerInput {
   name: string;
   snapshotDate: string; // "YYYY-MM-DD"
 }
-
-// What the upload did.
-export interface ImportLayerResult {
+// What a save or upload did.
+export interface SaveLayerResult {
   id: number;
   replaced: boolean; // true = a version with the same name + date existed and was overwritten
   areas: number;
   lines: number;
-  skippedPoints: number;
+  icons: number; // icons + text labels
 }
