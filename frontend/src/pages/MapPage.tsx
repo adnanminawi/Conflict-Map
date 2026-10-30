@@ -1,32 +1,47 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { fetchEvents } from '../api/events'
 import { fetchLocations } from '../api/locations'
-import { addLocationMarkers } from '../map/locationsLayer'
-import { buildPopup } from '../map/popup'
-import type { MapEvent } from '../types'
-import MapLegend from '../components/MapLegend'
 import { fetchLayers } from '../api/layers'
-import { addShapeLayers } from '../map/shapesLayer'
+import { TOKEN_KEY } from '../api/client'
+import { addLocationMarkers } from '../map/locationsLayer'
+import { setupShapeLayers, showShapes } from '../map/shapesLayer'
+import { buildPopup } from '../map/popup'
+import MapLegend from '../components/MapLegend'
+import type { MapEvent, MapLayer } from '../types'
 
+import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config'
 
-// MapTiler map. The key lives in frontend/.env.local (VITE_MAPTILER_KEY).
-// Other styles: 'streets-v2' (normal map), 'satellite' (imagery without labels).
-const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined
-const MAP_STYLE = `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`
-const START_CENTER: [number, number] = [53, 30] // [lng, lat] — Iran / Gulf
-const START_ZOOM = 4
+// The editor is only downloaded when an admin is logged in. Visitors never load it.
+const MapEditor = lazy(() => import('../components/MapEditor'))
+
 const REFRESH_MS = 60_000
 
-export default function EventsMap() {
+export default function MapPage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<maplibregl.Marker[]>([])
   const [status, setStatus] = useState<string | null>('Loading events…')
   const [eventCount, setEventCount] = useState(0)
 
-  // 1. Create the map once, then add the bases / airports layer
+  // Frontlines
+  const [map, setMap] = useState<maplibregl.Map | null>(null) // set once the map is ready for shapes
+  const [layers, setLayers] = useState<MapLayer[]>([])
+  const [editingName, setEditingName] = useState<string | null>(null) // layer open in the editor
+
+  // Logged in as admin → show the editing panel. (The backend still checks the token on every save.)
+  const isAdmin = localStorage.getItem(TOKEN_KEY) !== null
+
+  async function loadLayers() {
+    try {
+      setLayers(await fetchLayers())
+    } catch (err) {
+      console.error('Could not load frontlines', err)
+    }
+  }
+
+  // 1. Create the map once, then add the bases and airports
   useEffect(() => {
     if (!MAPTILER_KEY) {
       setStatus('Missing VITE_MAPTILER_KEY in frontend/.env.local')
@@ -41,20 +56,19 @@ export default function EventsMap() {
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     mapRef.current = map
 
-     
+    // Bases and airports (loaded once — they don't move)
     fetchLocations()
       .then((locations) => {
         if (mapRef.current === map) addLocationMarkers(map, locations)
       })
       .catch((err) => console.error('Could not load bases and airports', err))
 
-      map.on('load', () => {
-      fetchLayers()
-        .then((layers) => {
-          if (mapRef.current === map) addShapeLayers(map, layers)
-        })
-        .catch((err) => console.error('Could not load frontlines', err))
+    // Frontlines need the map style to be ready, so wait for 'load'
+    map.on('load', async () => {
+      await setupShapeLayers(map)
+      if (mapRef.current === map) setMap(map)
     })
+    loadLayers()
 
     return () => {
       map.remove()
@@ -62,7 +76,12 @@ export default function EventsMap() {
     }
   }, [])
 
-  // 2. Load events now and every minute
+  // 2. Draw the frontlines. The layer open in the editor is hidden here (the editor shows it instead).
+  useEffect(() => {
+    if (map) showShapes(map, layers.filter((layer) => layer.name !== editingName))
+  }, [map, layers, editingName])
+
+  // 3. Load events now and every minute
   useEffect(() => {
     let cancelled = false
 
@@ -113,6 +132,12 @@ export default function EventsMap() {
       <MapLegend />
 
       {status && <div className="map-panel status">{status}</div>}
+
+      {isAdmin && map && (
+        <Suspense fallback={null}>
+          <MapEditor map={map} layers={layers} onEditingChange={setEditingName} onSaved={loadLayers} />
+        </Suspense>
+      )}
     </>
   )
 }
