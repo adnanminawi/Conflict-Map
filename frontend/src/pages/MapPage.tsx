@@ -4,9 +4,11 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { fetchEvents } from '../api/events'
 import { fetchLocations } from '../api/locations'
 import { fetchLayers } from '../api/layers'
+import { fetchAlerts } from '../api/alerts'
 import { TOKEN_KEY } from '../api/client'
 import { addLocationMarkers } from '../map/locationsLayer'
 import { setupShapeLayers, showShapes } from '../map/shapesLayer'
+import { setupAlertLayers, showAlerts } from '../map/alertsLayer'
 import { buildPopup } from '../map/popup'
 import MapLegend from '../components/MapLegend'
 import type { MapEvent, MapLayer } from '../types'
@@ -17,6 +19,7 @@ import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config
 const MapEditor = lazy(() => import('../components/MapEditor'))
 
 const REFRESH_MS = 60_000
+const ALERTS_REFRESH_MS = 10_000 // siren alerts change fast
 
 export default function MapPage() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -63,9 +66,10 @@ export default function MapPage() {
       })
       .catch((err) => console.error('Could not load bases and airports', err))
 
-    // Frontlines need the map style to be ready, so wait for 'load'
+    // Frontlines and alerts need the map style to be ready, so wait for 'load'
     map.on('load', async () => {
       await setupShapeLayers(map)
+      setupAlertLayers(map) // after the shapes, so alerts are drawn on top
       if (mapRef.current === map) setMap(map)
     })
     loadLayers()
@@ -81,7 +85,24 @@ export default function MapPage() {
     if (map) showShapes(map, layers.filter((layer) => layer.name !== editingName))
   }, [map, layers, editingName])
 
-  // 3. Load events now and every minute
+  // 3. Siren alerts of the last hour, refreshed every 10 seconds
+  useEffect(() => {
+    if (!map) return
+
+    async function load() {
+      try {
+        showAlerts(map!, await fetchAlerts(60))
+      } catch (err) {
+        console.error('Could not load alerts', err)
+      }
+    }
+
+    load()
+    const timer = setInterval(load, ALERTS_REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [map])
+
+  // 4. Load events now and every minute
   useEffect(() => {
     let cancelled = false
 

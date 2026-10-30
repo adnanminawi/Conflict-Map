@@ -8,7 +8,10 @@
     "build": "tsc",
     "start": "node dist/src/server.js",
     "import:kml": "tsx scripts/importKml.ts",
-    "create-admin": "tsx scripts/createAdmin.ts"
+    "create-admin": "tsx scripts/createAdmin.ts",
+    "import:alert-areas": "tsx scripts/importAlertAreas.ts",
+    "telegram:login": "tsx scripts/telegramLogin.ts",
+    "test:alerts": "tsx scripts/testAlertParser.ts"
   },
   "dependencies": {
     "@tmcw/togeojson": "^5.8.1",
@@ -21,7 +24,9 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
-    "mysql2": "^3.11.3"
+    "mysql2": "^3.11.3",
+    "pikud-haoref-api": "^5.0.4",
+    "telegram": "^2.26.22"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",

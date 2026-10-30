@@ -114,3 +114,30 @@ export interface SaveLayerResult {
   lines: number
   icons: number // icons + text labels
 }
+// ---------- Siren alerts ----------
+
+export type AlertType = 'rockets' | 'drone' | 'other'
+
+export interface MapAlert {
+  id: number
+  type: AlertType
+  type_name: string
+  started_at: string
+  area_ids: number[]
+}
+
+export interface MapAlertArea {
+  id: number
+  name_he: string
+  name_en: string | null
+  name_ar: string | null
+  lat: number
+  lng: number
+  polygon: number[][] | null // [[lng, lat], ...]
+}
+
+// GET /api/alerts: the alerts + the places they covered (each place once)
+export interface AlertsResponse {
+  alerts: MapAlert[]
+  areas: MapAlertArea[]
+}
