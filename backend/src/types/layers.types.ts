@@ -4,6 +4,7 @@ import type { FeatureCollection } from 'geojson';
 export interface MapLayer {
   id: number;
   name: string; // e.g. "Yemen frontlines"
+  country_code: string | null;
   snapshot_date: string; // "2026-10-24" — the date this version shows
   geojson: FeatureCollection;
 }
@@ -18,6 +19,7 @@ export interface LayerVersion {
 }
 export interface SaveLayerInput {
   name: string;
+  countryCode: string
   snapshotDate: string; // "YYYY-MM-DD"
   features: unknown[]; // checked and cleaned by utils/shapes.ts before saving
 }
@@ -27,6 +29,7 @@ export interface ImportLayerInput {
   file: Buffer;
   fileName: string;
   name: string;
+  countryCode: string
   snapshotDate: string; // "YYYY-MM-DD"
 }
 // What a save or upload did.

@@ -8,7 +8,7 @@ import type { LayerVersion, MapLayer } from '../types/layers.types';
 // mysql2 turns the JSON column into a normal object automatically.
 export async function findLatest(): Promise<MapLayer[]> {
   const [rows] = await db.execute<(MapLayer & RowDataPacket)[]>(
-    `SELECT l.id, l.name, DATE_FORMAT(l.snapshot_date, '%Y-%m-%d') AS snapshot_date, l.geojson
+    `SELECT l.id, l.name,l.country_code, DATE_FORMAT(l.snapshot_date, '%Y-%m-%d') AS snapshot_date, l.geojson
        FROM map_layers l
       WHERE l.snapshot_date = (SELECT MAX(m.snapshot_date)
                                  FROM map_layers m
@@ -20,7 +20,7 @@ export async function findLatest(): Promise<MapLayer[]> {
 // Every version of every layer, newest first (for the admin list).
 export async function findVersions(): Promise<LayerVersion[]> {
   const [rows] = await db.execute<(LayerVersion & RowDataPacket)[]>(
-    `SELECT l.id, l.name, DATE_FORMAT(l.snapshot_date, '%Y-%m-%d') AS snapshot_date,
+    `SELECT l.id, l.name,l.country_code,   DATE_FORMAT(l.snapshot_date, '%Y-%m-%d') AS snapshot_date,
             JSON_LENGTH(l.geojson, '$.features') AS shape_count,
             a.username AS created_by_username
        FROM map_layers l
@@ -42,20 +42,27 @@ export async function findIdByNameAndDate(name: string, snapshotDate: string): P
 // Saves a new version and returns its id.
 export async function insert(
   name: string,
+  countryCode: string,
   snapshotDate: string,
   geojson: FeatureCollection,
   createdBy: number,
 ): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
-    'INSERT INTO map_layers (name, snapshot_date, geojson, created_by) VALUES (?, ?, ?, ?)',
-    [name, snapshotDate, JSON.stringify(geojson), createdBy],
+    'INSERT INTO map_layers (name, country_code, snapshot_date, geojson, created_by) VALUES (?, ?, ?, ?, ?)',
+    [name, countryCode, snapshotDate, JSON.stringify(geojson), createdBy],
   );
   return result.insertId;
 }
 
 // Overwrites the shapes of an existing version (same name + date uploaded again).
-export async function replaceShapes(id: number, geojson: FeatureCollection, createdBy: number): Promise<void> {
-  await db.execute('UPDATE map_layers SET geojson = ?, created_by = ? WHERE id = ?', [
+export async function replaceShapes(
+  id: number,
+  countryCode: string,
+  geojson: FeatureCollection,
+  createdBy: number,
+): Promise<void> {
+  await db.execute('UPDATE map_layers SET country_code = ?, geojson = ?, created_by = ? WHERE id = ?', [
+    countryCode,
     JSON.stringify(geojson),
     createdBy,
     id,
