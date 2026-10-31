@@ -8,7 +8,7 @@ import { fetchAlerts } from '../api/alerts'
 import { TOKEN_KEY } from '../api/client'
 import { addLocationMarkers } from '../map/locationsLayer'
 import { setupShapeLayers, showShapes } from '../map/shapesLayer'
-import { setupAlertLayers, showAlerts } from '../map/alertsLayer'
+import { setupAlertLayers, showAlerts, ALERT_MINUTES } from '../map/alertsLayer'
 import { buildPopup } from '../map/popup'
 import MapLegend from '../components/MapLegend'
 import type { MapEvent, MapLayer } from '../types'
@@ -91,7 +91,7 @@ export default function MapPage() {
 
     async function load() {
       try {
-        showAlerts(map!, await fetchAlerts(60))
+        showAlerts(map!, await fetchAlerts(ALERT_MINUTES))
       } catch (err) {
         console.error('Could not load alerts', err)
       }
