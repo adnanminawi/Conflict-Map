@@ -125,6 +125,10 @@ function readCreateEventBody(body: any): CreateEventInput {
       throw AppError.badRequest('location_id must be a positive whole number');
     }
   }
+  const countryCode = typeof body.country_code === 'string' ? body.country_code.trim().toUpperCase() : '';
+  if (!/^[A-Z]{2}$/.test(countryCode)) {
+    throw AppError.badRequest('country_code must be a 2-letter code, e.g. IR');
+  }
 
   const status: EventStatus = body.status ?? 'unverified';
   if (!STATUSES.includes(status)) {
@@ -139,6 +143,7 @@ function readCreateEventBody(body: any): CreateEventInput {
     lat,
     lng,
     location_id: locationId,
+    country_code: countryCode,
     status,
   };
 }
