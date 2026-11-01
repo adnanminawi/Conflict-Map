@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { deleteLayerVersion, fetchLayerVersions, importLayer } from '../api/admin'
+import { fetchSides } from '../api/sides'
 import { getErrorMessage, isUnauthorized } from '../api/client'
-import type { LayerVersion } from '../types'
+import SidePicker from './SidePicker'
+import type { LayerVersion, Side } from '../types'
 
 interface Props {
   onLoggedOut: () => void
@@ -13,9 +15,11 @@ const today = new Date().toLocaleDateString('en-CA')
 // Upload frontlines (KML/KMZ) and see / delete the saved versions.
 export default function LayerImport({ onLoggedOut }: Props) {
   const [versions, setVersions] = useState<LayerVersion[]>([])
+  const [sides, setSides] = useState<Side[]>([])
   const [file, setFile] = useState<File | null>(null)
-  const [name, setName] = useState('')
   const [country, setCountry] = useState('')
+  const [sideId, setSideId] = useState<number | null>(null)
+  const [name, setName] = useState('')
   const [date, setDate] = useState(today)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -36,23 +40,27 @@ export default function LayerImport({ onLoggedOut }: Props) {
 
   useEffect(() => {
     load()
+    fetchSides().then(setSides).catch(handleError)
   }, [])
 
-  // Typing / picking a layer name. If it's an existing layer → use its country.
+  // Typing / picking a layer name. An existing layer → use its country and side.
   function changeName(value: string) {
     setName(value)
     const existing = versions.find((v) => v.name === value)
-    if (existing?.country_code) setCountry(existing.country_code)
+    if (existing) {
+      setCountry(existing.country_code)
+      setSideId(existing.side_id)
+    }
   }
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault()
-    if (!file) return
+    if (!file || !sideId) return
     setMessage('')
     setError('')
     setBusy(true)
     try {
-      const result = await importLayer({ file, name: name.trim(), country, date })
+      const result = await importLayer({ file, name: name.trim(), sideId, date })
       setMessage(`Saved: ${result.areas} areas, ${result.lines} lines, ${result.icons} icons.`)
       await load()
     } catch (err) {
@@ -72,6 +80,8 @@ export default function LayerImport({ onLoggedOut }: Props) {
     }
   }
 
+  const layerNames = [...new Set(versions.map((v) => v.name))] // each name once
+
   return (
     <div className="stack">
       <form className="card" onSubmit={handleUpload}>
@@ -83,6 +93,17 @@ export default function LayerImport({ onLoggedOut }: Props) {
           <input type="file" accept=".kml,.kmz" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required />
         </label>
 
+        <div className="row side-row">
+          <SidePicker
+            sides={sides}
+            country={country}
+            sideId={sideId}
+            onCountryChange={setCountry}
+            onSideChange={setSideId}
+            onSideCreated={(side) => setSides([...sides, side])}
+          />
+        </div>
+
         <div className="row">
           <label>
             Layer name
@@ -90,26 +111,15 @@ export default function LayerImport({ onLoggedOut }: Props) {
               value={name}
               onChange={(e) => changeName(e.target.value)}
               list="layer-names"
-              placeholder="Yemen frontlines"
+              placeholder="Taiz front"
               required
             />
             {/* Suggests existing names, so a typo doesn't create a new layer */}
             <datalist id="layer-names">
-              {versions.map((v) => (
-                <option key={v.id} value={v.name} />
+              {layerNames.map((n) => (
+                <option key={n} value={n} />
               ))}
             </datalist>
-          </label>
-          <label className="short">
-            Country code
-            <input
-              value={country}
-              onChange={(e) => setCountry(e.target.value.toUpperCase())}
-              maxLength={2}
-              minLength={2}
-              placeholder="YE"
-              required
-            />
           </label>
           <label>
             Date this map shows
@@ -120,7 +130,7 @@ export default function LayerImport({ onLoggedOut }: Props) {
         {message && <p className="success">{message}</p>}
         {error && <p className="error">{error}</p>}
 
-        <button className="btn" type="submit" disabled={busy}>
+        <button className="btn" type="submit" disabled={busy || !sideId}>
           {busy ? 'Uploading…' : 'Upload'}
         </button>
       </form>
@@ -139,8 +149,8 @@ export default function LayerImport({ onLoggedOut }: Props) {
                   {v.name}
                 </div>
                 <div className="event-meta">
-                  {v.country_code ?? 'no country'} · {v.snapshot_date} · {v.shape_count} shapes · by{' '}
-                  {v.created_by_username}
+                  <span className="side-dot" style={{ background: v.side_color }} /> {v.side_name} ({v.country_code}) ·{' '}
+                  {v.snapshot_date} · {v.shape_count} shapes · by {v.created_by_username}
                 </div>
               </div>
               <button className="btn btn-small btn-danger" onClick={() => remove(v.id)}>

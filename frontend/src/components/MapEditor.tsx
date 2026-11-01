@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import type * as maplibregl from 'maplibre-gl'
 import type { GeoJSONStoreFeatures, TerraDraw } from 'terra-draw'
 import { saveLayer } from '../api/admin'
+import { fetchSides } from '../api/sides'
 import { getErrorMessage, isUnauthorized } from '../api/client'
 import { createDraw, fromDraw, toDrawFeatures } from '../map/drawTools'
 import { DEFAULT_COLOR, enableShapePopups } from '../map/shapesLayer'
-import type { MapLayer } from '../types'
+import SidePicker from './SidePicker'
+import type { MapLayer, Side } from '../types'
 
 interface Props {
   map: maplibregl.Map
@@ -27,11 +29,11 @@ const TOOLS: { tool: Tool; label: string; mode: string; hint: string }[] = [
   { tool: 'text', label: 'Text', mode: 'point', hint: 'Click where the text goes, then type it in the panel.' },
 ]
 
-// How a new shape looks, depending on the tool that drew it
-function defaultProps(tool: Tool) {
-  if (tool === 'area') return { fill: DEFAULT_COLOR, stroke: DEFAULT_COLOR, 'fill-opacity': 0.35 }
-  if (tool === 'line') return { stroke: DEFAULT_COLOR, 'stroke-width': 3, arrow: false }
-  if (tool === 'arrow') return { stroke: DEFAULT_COLOR, 'stroke-width': 4, arrow: true }
+// How a new shape looks, depending on the tool that drew it. color = the side's color.
+function defaultProps(tool: Tool, color: string) {
+  if (tool === 'area') return { fill: color, stroke: color, 'fill-opacity': 0.35 }
+  if (tool === 'line') return { stroke: color, 'stroke-width': 3, arrow: false }
+  if (tool === 'arrow') return { stroke: color, 'stroke-width': 4, arrow: true }
   return { icon: tool } // fighting / explosion / text
 }
 
@@ -41,10 +43,14 @@ const today = new Date().toLocaleDateString('en-CA') // "2026-10-29"
 export default function MapEditor({ map, layers, onEditingChange, onSaved }: Props) {
   const drawRef = useRef<TerraDraw | null>(null)
   const toolRef = useRef<Tool>('select') // the 'finish' event needs the current tool
+  const colorRef = useRef(DEFAULT_COLOR) // the side's color, for new shapes (the 'finish' event needs it too)
   const keptRef = useRef<GeoJSONStoreFeatures[]>([]) // shapes Terra Draw can't edit: saved unchanged
 
   const [editing, setEditing] = useState<string | null>(null) // name of the layer being edited
   const [pick, setPick] = useState('') // layer name typed / chosen before editing
+  const [sides, setSides] = useState<Side[]>([])
+  const [country, setCountry] = useState('') // e.g. YE
+  const [sideId, setSideId] = useState<number | null>(null)
   const [tool, setTool] = useState<Tool>('select')
   const [selected, setSelected] = useState<{ id: string | number; props: Record<string, any> } | null>(null)
   const [date, setDate] = useState(today)
@@ -52,10 +58,28 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [country, setCountry] = useState('')
 
   // If the page closes while editing, remove the drawing tool from the map
   useEffect(() => () => drawRef.current?.stop(), [])
+
+  // The sides, for the country → side choice
+  useEffect(() => {
+    fetchSides()
+      .then(setSides)
+      .catch((err) => setError(getErrorMessage(err)))
+  }, [])
+
+  const side = sides.find((s) => s.id === sideId)
+
+  // Typing / picking a layer name. An existing layer → use its country and side.
+  function changePick(value: string) {
+    setPick(value)
+    const existing = layers.find((l) => l.name === value)
+    if (existing) {
+      setCountry(existing.country_code)
+      setSideId(existing.side_id)
+    }
+  }
 
   function chooseTool(next: Tool) {
     toolRef.current = next
@@ -66,7 +90,8 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
 
   function startEditing() {
     const name = pick.trim()
-    if (!name || country.length !== 2) return
+    if (!name || !side) return
+    colorRef.current = side.color
     const layer = layers.find((l) => l.name === name) // existing layer, or undefined = new layer
 
     const draw = createDraw(map)
@@ -82,7 +107,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
       setChanged(true)
       if (context.action !== 'draw') return
       // New shape: give it its look, then select it so the admin can name it
-      draw.updateFeatureProperties(id, defaultProps(toolRef.current))
+      draw.updateFeatureProperties(id, defaultProps(toolRef.current, colorRef.current))
       chooseTool('select')
       draw.selectFeature(id)
     })
@@ -126,7 +151,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
   }
 
   async function save() {
-    if (!drawRef.current || !editing) return
+    if (!drawRef.current || !editing || !sideId) return
     const features = [...fromDraw(drawRef.current.getSnapshot()), ...fromDraw(keptRef.current)]
     if (features.length === 0) {
       setError('Draw at least one shape before saving.')
@@ -136,7 +161,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
     setBusy(true)
     setError('')
     try {
-      const result = await saveLayer({ name: editing, country, date, features })
+      const result = await saveLayer({ name: editing, side_id: sideId, date, features })
       await onSaved() // reload the layers, so the map shows the new version
       stopEditing()
       setMessage(`${result.replaced ? 'Replaced' : 'Saved'} "${editing}" for ${date}.`)
@@ -163,27 +188,25 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
         <div className="editor-title">Edit map</div>
         <input
           value={pick}
-          onChange={(e) => {
-            setPick(e.target.value)
-            // An existing layer was picked → use its country
-            const existing = layers.find((l) => l.name === e.target.value)
-            if (existing?.country_code) setCountry(existing.country_code)
-          }}
+          onChange={(e) => changePick(e.target.value)}
           list="editor-layers"
-          placeholder="Layer name, e.g. Yemen frontlines"
-        />
-        <input
-          value={country}
-          onChange={(e) => setCountry(e.target.value.toUpperCase())}
-          maxLength={2}
-          placeholder="Country code, e.g. YE"
+          placeholder="Layer name, e.g. Taiz front"
         />
         <datalist id="editor-layers">
           {layers.map((l) => (
             <option key={l.id} value={l.name} />
           ))}
         </datalist>
-        <button className="btn btn-small" onClick={startEditing} disabled={!pick.trim() || country.length !== 2}>
+        <SidePicker
+          sides={sides}
+          country={country}
+          sideId={sideId}
+          onCountryChange={setCountry}
+          onSideChange={setSideId}
+          onSideCreated={(s) => setSides([...sides, s])}
+        />
+        {error && <p className="error">{error}</p>}
+        <button className="btn btn-small" onClick={startEditing} disabled={!pick.trim() || !side}>
           {exists || !pick.trim() ? 'Edit layer' : 'Create new layer'}
         </button>
         {message && <p className="editor-note">{message}</p>}
@@ -195,7 +218,9 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
   const p = selected?.props
   return (
     <div className="map-panel editor">
-       <div className="editor-title">Editing: {editing} ({country})</div>
+      <div className="editor-title">
+        Editing: {editing} ({side?.name} · {country})
+      </div>
 
       <div className="editor-tools">
         {TOOLS.map((t) => (

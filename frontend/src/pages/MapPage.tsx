@@ -17,6 +17,8 @@ import {
   countryBox,
   findCountries,
   inCountry,
+  keepShape,
+  sidesInCountry,
   visibleAlertTypes,
   type Category,
   type Visible,
@@ -24,7 +26,7 @@ import {
 import MapLegend from '../components/MapLegend'
 import CountryTabs from '../components/CountryTabs'
 import type { AlertsResponse, MapEvent, MapLayer, MapLocation } from '../types'
-import { keepShape } from '../map/filters'
+
 import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config'
 
 // The editor is only downloaded when an admin is logged in. Visitors never load it.
@@ -48,6 +50,7 @@ export default function MapPage() {
   // What the visitor chose (reset on every visit)
   const [country, setCountry] = useState(ALL)
   const [visible, setVisible] = useState<Visible>(ALL_VISIBLE)
+  const [hiddenSides, setHiddenSides] = useState<number[]>([]) // side ids switched off (reset when the country changes)
 
   // Admin: the layer open in the editor is hidden from the normal display
   const [editingName, setEditingName] = useState<string | null>(null)
@@ -158,17 +161,20 @@ export default function MapPage() {
     return () => markers.forEach((m) => m.remove())
   }, [map, events, visible.events, country])
 
-  // Frontlines (areas, arrows, fighting / explosion icons)
+  // Frontlines: right country, side switched on, not the layer being edited,
+  // and inside each layer only the shapes whose switch is on (frontlines / fighting / explosion)
   useEffect(() => {
     if (!map) return
     const shown = layers
-      .filter((l) => l.name !== editingName && inCountry(l.country_code, country))
+      .filter(
+        (l) => l.name !== editingName && inCountry(l.country_code, country) && !hiddenSides.includes(l.side_id),
+      )
       .map((l) => ({
         ...l,
         geojson: { ...l.geojson, features: l.geojson.features.filter((f) => keepShape(f, visible)) },
       }))
     showShapes(map, shown)
-  }, [map, layers, editingName, visible, country])
+  }, [map, layers, editingName, visible, country, hiddenSides])
 
   // Siren alerts: only in the "All" and Israel tabs, only the switched-on types
   useEffect(() => {
@@ -182,6 +188,7 @@ export default function MapPage() {
   // Country tab: filter, then zoom to that country ("All" → back to the start view)
   function selectCountry(code: string) {
     setCountry(code)
+    setHiddenSides([]) // each country starts with all its sides shown
     if (!map) return
     if (code === ALL) {
       map.flyTo({ center: START_CENTER, zoom: START_ZOOM })
@@ -195,6 +202,15 @@ export default function MapPage() {
 
   function toggle(category: Category) {
     setVisible((v) => ({ ...v, [category]: !v[category] }))
+  }
+
+  function toggleSide(sideId: number) {
+    setHiddenSides((hidden) => (hidden.includes(sideId) ? hidden.filter((id) => id !== sideId) : [...hidden, sideId]))
+  }
+
+  function showAll() {
+    setVisible(ALL_VISIBLE)
+    setHiddenSides([])
   }
 
   const countries = findCountries(locations, events, layers)
@@ -216,7 +232,14 @@ export default function MapPage() {
 
       <CountryTabs countries={countries} selected={country} onSelect={selectCountry} />
 
-      <MapLegend visible={visible} onToggle={toggle} onShowAll={() => setVisible(ALL_VISIBLE)} />
+      <MapLegend
+        visible={visible}
+        onToggle={toggle}
+        onShowAll={showAll}
+        sides={sidesInCountry(layers, country)}
+        hiddenSides={hiddenSides}
+        onToggleSide={toggleSide}
+      />
 
       {status && <div className="map-panel status">{status}</div>}
 
