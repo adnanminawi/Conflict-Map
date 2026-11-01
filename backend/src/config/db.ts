@@ -11,6 +11,7 @@ export const db = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   supportBigNumbers: true,
+   ssl: process.env.DB_SSL_CA ? { ca: process.env.DB_SSL_CA } : undefined,
 });
 
 export async function checkDbConnection(): Promise<void> {
