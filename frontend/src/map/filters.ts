@@ -8,6 +8,22 @@ export type Category = 'rockets' | 'drones' | 'events' | 'frontlines' | 'airport
 
 export type Visible = Record<Category, boolean>
 
+
+export interface LegendSide {
+  id: number
+  name: string
+  color: string
+}
+
+// The sides that have layers in this country (each once, sorted by name). Empty for the "All" tab.
+export function sidesInCountry(layers: MapLayer[], country: string): LegendSide[] {
+  if (country === ALL) return []
+  const found = new Map<number, LegendSide>()
+  for (const l of layers) {
+    if (l.country_code === country) found.set(l.side_id, { id: l.side_id, name: l.side_name, color: l.side_color })
+  }
+  return [...found.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
 export function keepShape(feature: Feature, visible: Visible): boolean {
   const icon = feature.properties?.icon
   if (icon === 'fighting') return visible.fighting

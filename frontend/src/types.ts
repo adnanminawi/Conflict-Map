@@ -56,6 +56,7 @@ export interface AdminEvent {
   type_name: string
   created_by_username: string
 }
+
 export interface LocationType {
   id: number
   code: string // 'military_base' | 'airport' | 'naval_base'
@@ -72,16 +73,41 @@ export interface ImportSummary {
   invalid: number
   autoNamed: number
 }
+
 export interface KmlImportInput {
   file: File
   type: string // location type code, e.g. 'military_base'
   country: string // 2-letter code, e.g. 'IR'
   dryRun: boolean // true = preview only, nothing is saved
 }
+
+// ---------- Sides ----------
+
+// One side of a conflict in a country, e.g. Yemen → Houthis (GET /api/sides).
+export interface Side {
+  id: number
+  country_code: string // "YE"
+  name: string // "Houthis"
+  color: string // "#A52714" — legend dot + the editor's default color
+}
+
+// What the admin sends to create a side (POST /api/sides).
+export interface NewSide {
+  country: string // 2 letters
+  name: string
+  color: string // "#RRGGBB"
+}
+
+// ---------- Frontline / area layers ----------
+
+// The newest version of one layer (GET /api/layers).
 export interface MapLayer {
   id: number
-  name: string // e.g. "Yemen frontlines"
-  country_code: string | null
+  name: string // e.g. "Taiz front"
+  side_id: number
+  side_name: string // "Houthis"
+  side_color: string // "#A52714"
+  country_code: string // "YE" — comes from the side
   snapshot_date: string // "2026-10-24"
   geojson: FeatureCollection
 }
@@ -90,7 +116,10 @@ export interface MapLayer {
 export interface LayerVersion {
   id: number
   name: string
-  country_code: string | null
+  side_id: number
+  side_name: string
+  side_color: string
+  country_code: string
   snapshot_date: string
   shape_count: number
   created_by_username: string
@@ -100,14 +129,14 @@ export interface LayerVersion {
 export interface LayerImportInput {
   file: File
   name: string
-  country: string
+  sideId: number
   date: string // "YYYY-MM-DD"
 }
 
 // What the map editor sends (POST /api/layers).
 export interface SaveLayerInput {
   name: string
-  country: string
+  side_id: number
   date: string // "YYYY-MM-DD"
   features: Feature[]
 }
@@ -120,6 +149,7 @@ export interface SaveLayerResult {
   lines: number
   icons: number // icons + text labels
 }
+
 // ---------- Siren alerts ----------
 
 export type AlertType = 'rockets' | 'drone' | 'other'

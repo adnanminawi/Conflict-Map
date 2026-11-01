@@ -1,6 +1,6 @@
 // Calls used by the admin page.
 import { api } from './client'
-import type { AdminEvent, EventStatus, EventType, ImportSummary, KmlImportInput, LocationType, NewEvent, LayerVersion, SaveLayerInput, SaveLayerResult, LayerImportInput } from '../types'
+import type { AdminEvent, EventStatus, EventType, ImportSummary, KmlImportInput, LocationType, NewEvent, LayerVersion, SaveLayerInput, SaveLayerResult, LayerImportInput,NewSide,Side } from '../types'
 
 export async function login(username: string, password: string): Promise<string> {
   const { data } = await api.post<{ token: string }>('/auth/login', { username, password })
@@ -57,7 +57,7 @@ export async function importLayer(input: LayerImportInput): Promise<SaveLayerRes
   const form = new FormData()
   form.append('file', input.file)
   form.append('name', input.name)
-  form.append('country', input.country)
+  form.append('side_id', String(input.sideId))
   form.append('date', input.date)
 
   const { data } = await api.post<SaveLayerResult>('/layers/import', form)
@@ -70,5 +70,9 @@ export async function deleteLayerVersion(id: number): Promise<void> {
 
 export async function saveLayer(input: SaveLayerInput): Promise<SaveLayerResult> {
   const { data } = await api.post<SaveLayerResult>('/layers', input)
+  return data
+}
+export async function createSide(side: NewSide): Promise<Side> {
+  const { data } = await api.post<Side>('/sides', side)
   return data
 }
