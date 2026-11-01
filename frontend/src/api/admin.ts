@@ -1,13 +1,13 @@
 // Calls used by the admin page.
 import { api } from './client'
-import type { AdminEvent, EventStatus, EventType, ImportSummary,KmlImportInput, LocationType, NewEvent,LayerVersion,SaveLayerInput,SaveLayerResult,LayerImportInput} from '../types'
+import type { AdminEvent, EventStatus, EventType, ImportSummary, KmlImportInput, LocationType, NewEvent, LayerVersion, SaveLayerInput, SaveLayerResult, LayerImportInput } from '../types'
 
 export async function login(username: string, password: string): Promise<string> {
   const { data } = await api.post<{ token: string }>('/auth/login', { username, password })
   return data.token;
 }
 
-export async function fetchEventTypes(): Promise<EventType[]> { 
+export async function fetchEventTypes(): Promise<EventType[]> {
   const { data } = await api.get<EventType[]>('/events/types')
   return data;
 }
@@ -57,6 +57,7 @@ export async function importLayer(input: LayerImportInput): Promise<SaveLayerRes
   const form = new FormData()
   form.append('file', input.file)
   form.append('name', input.name)
+  form.append('country', input.country)
   form.append('date', input.date)
 
   const { data } = await api.post<SaveLayerResult>('/layers/import', form)

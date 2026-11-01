@@ -620,3 +620,105 @@ body,
   color: #8b95a3;
   max-width: 220px;
 }
+/* A narrow field in a row (e.g. a 2-letter country code) */
+.row label.short {
+  flex: 0 0 110px;
+}
+
+/* ---------- Country tabs (top of the map) ---------- */
+.country-tabs {
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  max-width: calc(100% - 520px); /* leave room for the header (left) and the zoom buttons (right) */
+  overflow-x: auto; /* many countries → scroll sideways */
+}
+
+.country-tab {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #c3cad4;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.country-tab:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.country-tab.active {
+  color: #ffffff;
+  background: var(--accent);
+}
+
+/* Smaller screens: the tabs go under the header, full width */
+@media (max-width: 900px) {
+  .country-tabs {
+    top: 76px;
+    left: 12px;
+    right: 60px;
+    transform: none;
+    max-width: none;
+  }
+}
+
+/* ---------- Legend = show / hide switches ---------- */
+.legend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #e6e9ee;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.map-legend label.legend-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+.legend-row input[type='checkbox'] {
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* A switched-off line is greyed out */
+.legend-row.off,
+.legend-sub.off {
+  opacity: 0.4;
+}
+
+/* The icons that belong to "Frontlines & fighting" */
+
+.legend-show-all {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #c3cad4;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.legend-show-all:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}

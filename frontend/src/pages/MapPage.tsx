@@ -10,30 +10,47 @@ import { addLocationMarkers } from '../map/locationsLayer'
 import { setupShapeLayers, showShapes } from '../map/shapesLayer'
 import { setupAlertLayers, showAlerts, ALERT_MINUTES } from '../map/alertsLayer'
 import { buildPopup } from '../map/popup'
+import {
+  ALL,
+  ALL_VISIBLE,
+  ALERTS_COUNTRY,
+  countryBox,
+  findCountries,
+  inCountry,
+  visibleAlertTypes,
+  type Category,
+  type Visible,
+} from '../map/filters'
 import MapLegend from '../components/MapLegend'
-import type { MapEvent, MapLayer } from '../types'
-
+import CountryTabs from '../components/CountryTabs'
+import type { AlertsResponse, MapEvent, MapLayer, MapLocation } from '../types'
+import { keepShape } from '../map/filters'
 import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config'
 
 // The editor is only downloaded when an admin is logged in. Visitors never load it.
 const MapEditor = lazy(() => import('../components/MapEditor'))
 
-const REFRESH_MS = 60_000
+const EVENTS_REFRESH_MS = 60_000
 const ALERTS_REFRESH_MS = 10_000 // siren alerts change fast
 
 export default function MapPage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const markersRef = useRef<maplibregl.Marker[]>([])
-  const [status, setStatus] = useState<string | null>('Loading events…')
-  const [eventCount, setEventCount] = useState(0)
+  const [map, setMap] = useState<maplibregl.Map | null>(null) // set once the map is ready
 
-  // Frontlines
-  const [map, setMap] = useState<maplibregl.Map | null>(null) // set once the map is ready for shapes
+  // Data from the backend
+  const [locations, setLocations] = useState<MapLocation[]>([])
+  const [events, setEvents] = useState<MapEvent[]>([])
   const [layers, setLayers] = useState<MapLayer[]>([])
-  const [editingName, setEditingName] = useState<string | null>(null) // layer open in the editor
+  const [alerts, setAlerts] = useState<AlertsResponse>({ alerts: [], areas: [] })
+  const [status, setStatus] = useState<string | null>('Loading events…')
 
-  // Logged in as admin → show the editing panel. (The backend still checks the token on every save.)
+  // What the visitor chose (reset on every visit)
+  const [country, setCountry] = useState(ALL)
+  const [visible, setVisible] = useState<Visible>(ALL_VISIBLE)
+
+  // Admin: the layer open in the editor is hidden from the normal display
+  const [editingName, setEditingName] = useState<string | null>(null)
   const isAdmin = localStorage.getItem(TOKEN_KEY) !== null
 
   async function loadLayers() {
@@ -44,7 +61,8 @@ export default function MapPage() {
     }
   }
 
-  // 1. Create the map once, then add the bases and airports
+  // ---------- 1. The map ----------
+
   useEffect(() => {
     if (!MAPTILER_KEY) {
       setStatus('Missing VITE_MAPTILER_KEY in frontend/.env.local')
@@ -59,20 +77,12 @@ export default function MapPage() {
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     mapRef.current = map
 
-    // Bases and airports (loaded once — they don't move)
-    fetchLocations()
-      .then((locations) => {
-        if (mapRef.current === map) addLocationMarkers(map, locations)
-      })
-      .catch((err) => console.error('Could not load bases and airports', err))
-
     // Frontlines and alerts need the map style to be ready, so wait for 'load'
     map.on('load', async () => {
       await setupShapeLayers(map)
       setupAlertLayers(map) // after the shapes, so alerts are drawn on top
       if (mapRef.current === map) setMap(map)
     })
-    loadLayers()
 
     return () => {
       map.remove()
@@ -80,61 +90,115 @@ export default function MapPage() {
     }
   }, [])
 
-  // 2. Draw the frontlines. The layer open in the editor is hidden here (the editor shows it instead).
-  useEffect(() => {
-    if (map) showShapes(map, layers.filter((layer) => layer.name !== editingName))
-  }, [map, layers, editingName])
+  // ---------- 2. Load the data ----------
 
-  // 3. Siren alerts of the last hour, refreshed every 10 seconds
+  // Bases and frontlines: once (they rarely change)
   useEffect(() => {
-    if (!map) return
+    fetchLocations()
+      .then(setLocations)
+      .catch((err) => console.error('Could not load bases and airports', err))
+    loadLayers()
+  }, [])
 
+  // Events: now and every minute
+  useEffect(() => {
     async function load() {
       try {
-        showAlerts(map!, await fetchAlerts(ALERT_MINUTES))
+        const list = await fetchEvents()
+        setEvents(list)
+        setStatus(list.length === 0 ? 'No confirmed events in the last 7 days' : null)
+      } catch {
+        setStatus('Could not load events — is the backend running?')
+      }
+    }
+    load()
+    const timer = setInterval(load, EVENTS_REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Siren alerts: now and every 10 seconds
+  useEffect(() => {
+    async function load() {
+      try {
+        setAlerts(await fetchAlerts(ALERT_MINUTES))
       } catch (err) {
         console.error('Could not load alerts', err)
       }
     }
-
     load()
     const timer = setInterval(load, ALERTS_REFRESH_MS)
     return () => clearInterval(timer)
-  }, [map])
+  }, [])
 
-  // 4. Load events now and every minute
+  // ---------- 3. Draw what is visible ----------
+  // Each part is drawn again when its data, the switches or the country tab change.
+  // The "return () => ..." removes the old markers before drawing the new ones.
+
+  // Bases and airports: only the switched-on types, only the selected country
   useEffect(() => {
-    let cancelled = false
+    if (!map) return
+    const shown = locations.filter(
+      (l) => visible[l.type_code as Category] !== false && inCountry(l.country_code, country),
+    )
+    const markers = addLocationMarkers(map, shown)
+    return () => markers.forEach((m) => m.remove())
+  }, [map, locations, visible, country])
 
-    async function load() {
-      try {
-        const events = await fetchEvents()
-        if (cancelled || !mapRef.current) return
-        drawMarkers(mapRef.current, events)
-        setEventCount(events.length)
-        setStatus(events.length === 0 ? 'No confirmed events in the last 7 days' : null)
-      } catch {
-        if (!cancelled) setStatus('Could not load events — is the backend running?')
-      }
-    }
-
-    function drawMarkers(map: maplibregl.Map, events: MapEvent[]) {
-      markersRef.current.forEach((m) => m.remove())
-      markersRef.current = events.map((event) =>
+  // Events
+  useEffect(() => {
+    if (!map || !visible.events) return
+    const markers = events
+      .filter((e) => inCountry(e.country_code, country))
+      .map((event) =>
         new maplibregl.Marker({ color: event.color ?? '#E53935' })
           .setLngLat([event.lng, event.lat])
           .setPopup(new maplibregl.Popup({ offset: 25 }).setDOMContent(eventPopup(event)))
           .addTo(map),
       )
-    }
+    return () => markers.forEach((m) => m.remove())
+  }, [map, events, visible.events, country])
 
-    load()
-    const timer = setInterval(load, REFRESH_MS)
-    return () => {
-      cancelled = true
-      clearInterval(timer)
+  // Frontlines (areas, arrows, fighting / explosion icons)
+  useEffect(() => {
+    if (!map) return
+    const shown = layers
+      .filter((l) => l.name !== editingName && inCountry(l.country_code, country))
+      .map((l) => ({
+        ...l,
+        geojson: { ...l.geojson, features: l.geojson.features.filter((f) => keepShape(f, visible)) },
+      }))
+    showShapes(map, shown)
+  }, [map, layers, editingName, visible, country])
+
+  // Siren alerts: only in the "All" and Israel tabs, only the switched-on types
+  useEffect(() => {
+    if (!map) return
+    const types = inCountry(ALERTS_COUNTRY, country) ? visibleAlertTypes(visible) : []
+    showAlerts(map, { ...alerts, alerts: alerts.alerts.filter((a) => types.includes(a.type)) })
+  }, [map, alerts, visible, country])
+
+  // ---------- 4. Visitor actions ----------
+
+  // Country tab: filter, then zoom to that country ("All" → back to the start view)
+  function selectCountry(code: string) {
+    setCountry(code)
+    if (!map) return
+    if (code === ALL) {
+      map.flyTo({ center: START_CENTER, zoom: START_ZOOM })
+      return
     }
-  }, [])
+    const box = countryBox(code, locations, events, layers)
+    // Leave room for the header (top), the legend (left) and the zoom buttons (right). Phones: small margins.
+    const padding = window.innerWidth > 600 ? { top: 90, bottom: 40, left: 290, right: 70 } : 40
+    if (box) map.fitBounds(box, { padding, maxZoom: 9 })
+  }
+
+  function toggle(category: Category) {
+    setVisible((v) => ({ ...v, [category]: !v[category] }))
+  }
+
+  const countries = findCountries(locations, events, layers)
+  const eventCount = events.filter((e) => inCountry(e.country_code, country)).length
 
   return (
     <>
@@ -150,7 +214,9 @@ export default function MapPage() {
         </div>
       </div>
 
-      <MapLegend />
+      <CountryTabs countries={countries} selected={country} onSelect={selectCountry} />
+
+      <MapLegend visible={visible} onToggle={toggle} onShowAll={() => setVisible(ALL_VISIBLE)} />
 
       {status && <div className="map-panel status">{status}</div>}
 

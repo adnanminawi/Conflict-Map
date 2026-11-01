@@ -52,6 +52,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [country, setCountry] = useState('')
 
   // If the page closes while editing, remove the drawing tool from the map
   useEffect(() => () => drawRef.current?.stop(), [])
@@ -65,7 +66,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
 
   function startEditing() {
     const name = pick.trim()
-    if (!name) return
+    if (!name || country.length !== 2) return
     const layer = layers.find((l) => l.name === name) // existing layer, or undefined = new layer
 
     const draw = createDraw(map)
@@ -135,7 +136,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
     setBusy(true)
     setError('')
     try {
-      const result = await saveLayer({ name: editing, date, features })
+      const result = await saveLayer({ name: editing, country, date, features })
       await onSaved() // reload the layers, so the map shows the new version
       stopEditing()
       setMessage(`${result.replaced ? 'Replaced' : 'Saved'} "${editing}" for ${date}.`)
@@ -162,16 +163,27 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
         <div className="editor-title">Edit map</div>
         <input
           value={pick}
-          onChange={(e) => setPick(e.target.value)}
+          onChange={(e) => {
+            setPick(e.target.value)
+            // An existing layer was picked → use its country
+            const existing = layers.find((l) => l.name === e.target.value)
+            if (existing?.country_code) setCountry(existing.country_code)
+          }}
           list="editor-layers"
           placeholder="Layer name, e.g. Yemen frontlines"
+        />
+        <input
+          value={country}
+          onChange={(e) => setCountry(e.target.value.toUpperCase())}
+          maxLength={2}
+          placeholder="Country code, e.g. YE"
         />
         <datalist id="editor-layers">
           {layers.map((l) => (
             <option key={l.id} value={l.name} />
           ))}
         </datalist>
-        <button className="btn btn-small" onClick={startEditing} disabled={!pick.trim()}>
+        <button className="btn btn-small" onClick={startEditing} disabled={!pick.trim() || country.length !== 2}>
           {exists || !pick.trim() ? 'Edit layer' : 'Create new layer'}
         </button>
         {message && <p className="editor-note">{message}</p>}
@@ -183,7 +195,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
   const p = selected?.props
   return (
     <div className="map-panel editor">
-      <div className="editor-title">Editing: {editing}</div>
+       <div className="editor-title">Editing: {editing} ({country})</div>
 
       <div className="editor-tools">
         {TOOLS.map((t) => (

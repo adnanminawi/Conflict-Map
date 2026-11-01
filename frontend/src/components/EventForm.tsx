@@ -24,6 +24,7 @@ export default function EventForm({ onLoggedOut }: Props) {
   const [lng, setLng] = useState('')
   const [occurredAt, setOccurredAt] = useState(nowForInput())
   const [status, setStatus] = useState<'unverified' | 'confirmed' | 'false'>('unverified')
+  const [country, setCountry] = useState('')
 
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -50,6 +51,7 @@ export default function EventForm({ onLoggedOut }: Props) {
         lng: Number(lng),
         occurred_at: new Date(occurredAt).toISOString(), // local time → UTC
         status,
+        country_code: country,
       })
       setMessage(`Event #${id} saved`)
       setTitle('')
@@ -62,7 +64,7 @@ export default function EventForm({ onLoggedOut }: Props) {
     }
   }
 
-    return (
+  return (
     <form className="card" onSubmit={handleSubmit}>
       <h2>Add event</h2>
       <p className="muted">New events are hidden from the public map until confirmed.</p>
@@ -82,6 +84,18 @@ export default function EventForm({ onLoggedOut }: Props) {
             </option>
           ))}
         </select>
+      </label>
+
+      <label>
+        Country code
+        <input
+          value={country}
+          onChange={(e) => setCountry(e.target.value.toUpperCase())}
+          maxLength={2}
+          minLength={2}
+          placeholder="IR"
+          required
+        />
       </label>
 
       <div className="section-title">Location</div>

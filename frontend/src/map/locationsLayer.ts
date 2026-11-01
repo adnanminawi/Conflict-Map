@@ -13,8 +13,8 @@ const ICONS: Record<string, string> = {
 }
 
 // Puts one icon on the map for each base / airport
-export function addLocationMarkers(map: maplibregl.Map, locations: MapLocation[]) {
-  for (const location of locations) {
+export function addLocationMarkers(map: maplibregl.Map, locations: MapLocation[]): maplibregl.Marker[] {
+  return locations.map((location) => {
     // 1. The icon
     const img = document.createElement('img')
     img.src = ICONS[location.type_code] ?? militaryBaseIcon
@@ -28,9 +28,9 @@ export function addLocationMarkers(map: maplibregl.Map, locations: MapLocation[]
     )
 
     // 3. Put it on the map
-    new maplibregl.Marker({ element: img })
+    return new maplibregl.Marker({ element: img })
       .setLngLat([location.lng, location.lat])
       .setPopup(popup)
       .addTo(map)
-  }
+  })
 }

@@ -15,6 +15,7 @@ export default function LayerImport({ onLoggedOut }: Props) {
   const [versions, setVersions] = useState<LayerVersion[]>([])
   const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState('')
+  const [country, setCountry] = useState('')
   const [date, setDate] = useState(today)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -37,6 +38,13 @@ export default function LayerImport({ onLoggedOut }: Props) {
     load()
   }, [])
 
+  // Typing / picking a layer name. If it's an existing layer → use its country.
+  function changeName(value: string) {
+    setName(value)
+    const existing = versions.find((v) => v.name === value)
+    if (existing?.country_code) setCountry(existing.country_code)
+  }
+
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault()
     if (!file) return
@@ -44,7 +52,7 @@ export default function LayerImport({ onLoggedOut }: Props) {
     setError('')
     setBusy(true)
     try {
-      const result = await importLayer({ file, name: name.trim(), date })
+      const result = await importLayer({ file, name: name.trim(), country, date })
       setMessage(`Saved: ${result.areas} areas, ${result.lines} lines, ${result.icons} icons.`)
       await load()
     } catch (err) {
@@ -80,7 +88,7 @@ export default function LayerImport({ onLoggedOut }: Props) {
             Layer name
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => changeName(e.target.value)}
               list="layer-names"
               placeholder="Yemen frontlines"
               required
@@ -91,6 +99,17 @@ export default function LayerImport({ onLoggedOut }: Props) {
                 <option key={v.id} value={v.name} />
               ))}
             </datalist>
+          </label>
+          <label className="short">
+            Country code
+            <input
+              value={country}
+              onChange={(e) => setCountry(e.target.value.toUpperCase())}
+              maxLength={2}
+              minLength={2}
+              placeholder="YE"
+              required
+            />
           </label>
           <label>
             Date this map shows
@@ -120,7 +139,8 @@ export default function LayerImport({ onLoggedOut }: Props) {
                   {v.name}
                 </div>
                 <div className="event-meta">
-                  {v.snapshot_date} · {v.shape_count} shapes · by {v.created_by_username}
+                  {v.country_code ?? 'no country'} · {v.snapshot_date} · {v.shape_count} shapes · by{' '}
+                  {v.created_by_username}
                 </div>
               </div>
               <button className="btn btn-small btn-danger" onClick={() => remove(v.id)}>
