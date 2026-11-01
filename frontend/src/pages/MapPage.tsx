@@ -26,12 +26,12 @@ import {
 import MapLegend from '../components/MapLegend'
 import CountryTabs from '../components/CountryTabs'
 import type { AlertsResponse, MapEvent, MapLayer, MapLocation } from '../types'
-
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config'
 
 // The editor is only downloaded when an admin is logged in. Visitors never load it.
 const MapEditor = lazy(() => import('../components/MapEditor'))
-
+maplibregl.setWorkerUrl(workerUrl)
 const EVENTS_REFRESH_MS = 60_000
 const ALERTS_REFRESH_MS = 10_000 // siren alerts change fast
 
