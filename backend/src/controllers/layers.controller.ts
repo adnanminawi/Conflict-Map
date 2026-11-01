@@ -23,15 +23,15 @@ export async function getLayerVersions(_req: Request, res: Response, next: NextF
 }
 
 // POST /api/layers  (admin only, JSON) — shapes drawn in the map editor
-// Body: { name: "Yemen frontlines", date: "2026-10-29", features: [...] }
+// Body: { name: "Taiz front", side_id: 1, date: "2026-10-29", features: [...] }
 export async function saveLayer(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, country, date } = readLayerFields(req.body);
+    const { name, sideId, date } = readLayerFields(req.body);
     const features = req.body?.features;
     if (!Array.isArray(features)) throw AppError.badRequest('features must be a list of shapes');
 
     const result = await layersService.saveLayer(
-      { name, countryCode: country, snapshotDate: date, features },
+      { name, sideId, snapshotDate: date, features },
       res.locals.adminId,
     );
     res.status(result.replaced ? 200 : 201).json(result);
@@ -41,7 +41,7 @@ export async function saveLayer(req: Request, res: Response, next: NextFunction)
 }
 
 // POST /api/layers/import  (admin only, multipart form)
-// Fields: file (.kml/.kmz), name (e.g. "Yemen frontlines"), date ("YYYY-MM-DD")
+// Fields: file (.kml/.kmz), name (e.g. "Taiz front"), side_id (e.g. 1), date ("YYYY-MM-DD")
 export async function importLayer(req: Request, res: Response, next: NextFunction) {
   try {
     const file = req.file; // added by multer
@@ -52,9 +52,9 @@ export async function importLayer(req: Request, res: Response, next: NextFunctio
       throw AppError.badRequest('Only .kml and .kmz files are allowed');
     }
 
-    const { name, country, date } = readLayerFields(req.body);
+    const { name, sideId, date } = readLayerFields(req.body);
     const result = await layersService.importLayer(
-      { file: file.buffer, fileName, name, countryCode: country, snapshotDate: date },
+      { file: file.buffer, fileName, name, sideId, snapshotDate: date },
       res.locals.adminId,
     );
     res.status(result.replaced ? 200 : 201).json(result);
@@ -75,16 +75,17 @@ export async function deleteLayerVersion(req: Request, res: Response, next: Next
   }
 }
 
-// Layer name + date are needed for both upload and save. Throws 400 if they are wrong.
-function readLayerFields(body: any): { name: string; country: string; date: string } {
+// Layer name, side and date are needed for both upload and save. Throws 400 if they are wrong.
+function readLayerFields(body: any): { name: string; sideId: number; date: string } {
   const name = typeof body?.name === 'string' ? body.name.trim() : '';
   if (name.length < 1 || name.length > 150) {
     throw AppError.badRequest('Layer name is required (max 150 characters)');
   }
 
-  const country = typeof body?.country === 'string' ? body.country.trim().toUpperCase() : '';
-  if (!/^[A-Z]{2}$/.test(country)) {
-    throw AppError.badRequest('country must be a 2-letter code, e.g. YE');
+  // Number(): a form upload sends "1" as text, the editor sends 1 as a number
+  const sideId = Number(body?.side_id);
+  if (!Number.isInteger(sideId) || sideId < 1) {
+    throw AppError.badRequest('Choose a side');
   }
 
   const date = typeof body?.date === 'string' ? body.date : '';
@@ -96,5 +97,5 @@ function readLayerFields(body: any): { name: string; country: string; date: stri
     throw AppError.badRequest('date cannot be in the future');
   }
 
-  return { name, country, date };
+  return { name, sideId, date };
 }
