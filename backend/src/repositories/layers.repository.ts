@@ -8,7 +8,7 @@ import type { LayerVersion, MapLayer } from '../types/layers.types';
 // mysql2 turns the JSON column into a normal object automatically.
 export async function findLatest(): Promise<MapLayer[]> {
   const [rows] = await db.execute<(MapLayer & RowDataPacket)[]>(
-    `SELECT l.id, l.name,l.side_id, s.name AS side_name, s.color AS side_color,s.country_code
+    `SELECT l.id, l.name,l.side_id, s.name AS side_name, s.color AS side_color,s.country_code,
        DATE_FORMAT(l.snapshot_date, '%Y-%m-%d') AS snapshot_date, l.geojson
        FROM map_layers l
        JOIN sides s on s.id=l.side_id
