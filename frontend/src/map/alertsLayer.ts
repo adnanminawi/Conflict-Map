@@ -6,6 +6,7 @@ import { arePopupsEnabled } from './shapesLayer'
 
 // Color of each kind of alert
 export const ALERT_COLORS = { rockets: '#ff2d2d', drone: '#ff8c00', other: '#ffd400' }
+export const ALERT_MINUTES = 5
 const color = ['match', ['get', 'type'], 'rockets', ALERT_COLORS.rockets, 'drone', ALERT_COLORS.drone, ALERT_COLORS.other]
 
 // Runs once, after the map has loaded (and after setupShapeLayers, so alerts are drawn on top)
@@ -22,7 +23,7 @@ export function setupAlertLayers(map: maplibregl.Map) {
       filter: ['==', ['geometry-type'], 'Polygon'],
       paint: {
         'fill-color': color as any,
-        'fill-opacity': ['interpolate', ['linear'], ['get', 'age_min'], 0, 0.6, 10, 0.45, 60, 0.1],
+        'fill-opacity': ['interpolate', ['linear'], ['get', 'age_min'], 0, 0.6, ALERT_MINUTES, 0.15],
       },
     },
     firstLabelLayer,
@@ -49,7 +50,7 @@ export function setupAlertLayers(map: maplibregl.Map) {
       'circle-radius': 6,
       'circle-stroke-color': '#ffffff',
       'circle-stroke-width': 1,
-      'circle-opacity': ['interpolate', ['linear'], ['get', 'age_min'], 0, 1, 60, 0.3],
+      'circle-opacity': ['interpolate', ['linear'], ['get', 'age_min'], 0, 1, ALERT_MINUTES, 0.3],
     },
   })
 

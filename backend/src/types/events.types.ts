@@ -12,6 +12,7 @@ export interface PublicEvent {
   icon: string;
   color: string | null;
   location_name: string | null;
+  country_code: string | null;
 }
 export type EventStatus = 'unverified' | 'confirmed' | 'false';
 
@@ -24,6 +25,7 @@ export interface CreateEventInput {
   lng: number;
   location_id: number | null;
   status: EventStatus;
+  country_code: string;
 }
 
 export interface AdminEvent {

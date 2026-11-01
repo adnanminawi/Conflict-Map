@@ -12,6 +12,7 @@ export interface MapEvent {
   icon: string
   color: string | null
   location_name: string | null
+  country_code: string | null
 }
 
 // Same shape as GET /api/locations returns.
@@ -41,6 +42,7 @@ export interface NewEvent {
   event_type_id: number
   lat: number
   lng: number
+  country_code: string
   occurred_at: string // ISO date in UTC
   status: EventStatus
 }
@@ -79,6 +81,7 @@ export interface KmlImportInput {
 export interface MapLayer {
   id: number
   name: string // e.g. "Yemen frontlines"
+  country_code: string | null
   snapshot_date: string // "2026-10-24"
   geojson: FeatureCollection
 }
@@ -87,6 +90,7 @@ export interface MapLayer {
 export interface LayerVersion {
   id: number
   name: string
+  country_code: string | null
   snapshot_date: string
   shape_count: number
   created_by_username: string
@@ -96,12 +100,14 @@ export interface LayerVersion {
 export interface LayerImportInput {
   file: File
   name: string
+  country: string
   date: string // "YYYY-MM-DD"
 }
 
 // What the map editor sends (POST /api/layers).
 export interface SaveLayerInput {
   name: string
+  country: string
   date: string // "YYYY-MM-DD"
   features: Feature[]
 }

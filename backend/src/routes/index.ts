@@ -5,6 +5,9 @@ import { eventsRoutes } from './events.routes';
 import { locationsRoutes } from './locations.routes';
 import { layersRoutes } from './layers.routes';
 import { alertsRoutes } from './alerts.routes';
+import { sidesRoutes } from './sides.route';
+
+
 export const routes = Router();
 
 routes.get('/health', async (_req, res) => {
@@ -21,3 +24,4 @@ routes.use('/events', eventsRoutes);
 routes.use('/locations', locationsRoutes);
 routes.use('/layers', layersRoutes);
 routes.use('/alerts', alertsRoutes);
+routes.use('/sides', sidesRoutes);

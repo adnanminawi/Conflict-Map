@@ -7,7 +7,7 @@ export async function findConfirmedSince(since: Date): Promise<PublicEvent[]> {
     `SELECT e.id, e.title, e.description, e.occurred_at, e.created_at,
             ST_Longitude(e.geom) AS lng, ST_Latitude(e.geom) AS lat,
             t.name AS type_name, t.icon, t.color,
-            l.name AS location_name
+            l.name AS location_name, e.country_code
        FROM events e
        JOIN event_types t ON t.id = e.event_type_id
        LEFT JOIN locations l ON l.id = e.location_id
@@ -21,8 +21,8 @@ export async function findConfirmedSince(since: Date): Promise<PublicEvent[]> {
 export async function insert(input: CreateEventInput, createdBy: number): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO events
-       (event_type_id, title, description, occurred_at, geom, location_id, status, created_by)
-     VALUES (?, ?, ?, ?, ST_GeomFromText(?, 4326, 'axis-order=long-lat'), ?, ?, ?)`,
+       (event_type_id, title, description, occurred_at, geom, location_id, country_code, status, created_by)
+     VALUES (?, ?, ?, ?, ST_GeomFromText(?, 4326, 'axis-order=long-lat'), ?, ?, ?, ?)`,
     [
       input.event_type_id,
       input.title,
@@ -30,6 +30,7 @@ export async function insert(input: CreateEventInput, createdBy: number): Promis
       input.occurred_at,
       `POINT(${input.lng} ${input.lat})`,
       input.location_id,
+      input.country_code,
       input.status,
       createdBy,
     ],
