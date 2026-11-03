@@ -7,7 +7,7 @@ import { fetchLayers } from '../api/layers'
 import { fetchAlerts } from '../api/alerts'
 import { TOKEN_KEY } from '../api/client'
 import { addLocationMarkers } from '../map/locationsLayer'
-import { setupShapeLayers, showShapes } from '../map/shapesLayer'
+import { arePopupsEnabled, enableShapePopups, setupShapeLayers, showShapes } from '../map/shapesLayer'
 import { setupAlertLayers, showAlerts, ALERT_MINUTES } from '../map/alertsLayer'
 import { buildPopup } from '../map/popup'
 import {
@@ -25,9 +25,13 @@ import {
 } from '../map/filters'
 import MapLegend from '../components/MapLegend'
 import CountryTabs from '../components/CountryTabs'
-import type { AlertsResponse, MapEvent, MapLayer, MapLocation } from '../types'
+
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config'
+import { fetchWeapons } from '../api/weapons'
+import { rangeBounds, setupWeaponLayers, showWeapons, startSweep, type PlacedWeapon } from '../map/weaponsLayer'
+import WeaponsPanel from '../components/WeaponsPanel'
+import type { AlertsResponse, MapEvent, MapLayer, MapLocation, Weapon } from '../types'
 
 // The editor is only downloaded when an admin is logged in. Visitors never load it.
 const MapEditor = lazy(() => import('../components/MapEditor'))
@@ -51,10 +55,14 @@ export default function MapPage() {
   const [country, setCountry] = useState(ALL)
   const [visible, setVisible] = useState<Visible>(ALL_VISIBLE)
   const [hiddenSides, setHiddenSides] = useState<number[]>([]) // side ids switched off (reset when the country changes)
-
+  const [placed, setPlaced] = useState<PlacedWeapon[]>([]) // weapons the visitor put on the map (gone after a refresh)
+  const [placing, setPlacing] = useState<Weapon | null>(null) // chosen in the panel, waiting for a click on the map
+  const nextPlacedId = useRef(1)
   // Admin: the layer open in the editor is hidden from the normal display
   const [editingName, setEditingName] = useState<string | null>(null)
   const isAdmin = localStorage.getItem(TOKEN_KEY) !== null
+
+  const [weapons, setWeapons] = useState<Weapon[]>([])
 
   async function loadLayers() {
     try {
@@ -84,6 +92,7 @@ export default function MapPage() {
     map.on('load', async () => {
       await setupShapeLayers(map)
       setupAlertLayers(map) // after the shapes, so alerts are drawn on top
+      setupWeaponLayers(map)
       if (mapRef.current === map) setMap(map)
     })
 
@@ -101,6 +110,9 @@ export default function MapPage() {
       .then(setLocations)
       .catch((err) => console.error('Could not load bases and airports', err))
     loadLayers()
+    fetchWeapons()
+      .then(setWeapons)
+      .catch((err) => console.error('Could not load weapons', err))
   }, [])
 
   // Events: now and every minute
@@ -183,6 +195,47 @@ export default function MapPage() {
     showAlerts(map, { ...alerts, alerts: alerts.alerts.filter((a) => types.includes(a.type)) })
   }, [map, alerts, visible, country])
 
+
+   useEffect(() => {
+    if (!map) return
+    showWeapons(map, placed)
+    return startSweep(map, placed)
+  }, [map, placed])
+
+  // Placing a weapon: the next click on the map puts it there. Esc cancels.
+  useEffect(() => {
+    if (!map || !placing) return
+    const popupsBefore = arePopupsEnabled()
+    enableShapePopups(false) // this click is for placing, not for opening popups
+    map.getCanvas().style.cursor = 'crosshair'
+
+    function onClick(e: maplibregl.MapMouseEvent) {
+      const weapon = placing!
+      const center: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+      setPlaced((list) => [...list, { id: nextPlacedId.current++, weapon, center }])
+      setPlacing(null)
+      // Show the whole reach: zoom so the circle fits (room for the legend on the left and this panel on the right)
+      const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 270 } : 30
+      map!.fitBounds(rangeBounds(center, weapon.range_km), { padding, duration: 800 })
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPlacing(null)
+    }
+    map.once('click', onClick)
+    window.addEventListener('keydown', onKey)
+
+    return () => {
+      map.off('click', onClick)
+      window.removeEventListener('keydown', onKey)
+      map.getCanvas().style.cursor = ''
+      // Turn popups back on a moment later, so this same click doesn't open one
+      setTimeout(() => enableShapePopups(popupsBefore), 0)
+    }
+  }, [map, placing])
+
+
+
+
   // ---------- 4. Visitor actions ----------
 
   // Country tab: filter, then zoom to that country ("All" → back to the start view)
@@ -239,6 +292,15 @@ export default function MapPage() {
         sides={sidesInCountry(layers, country)}
         hiddenSides={hiddenSides}
         onToggleSide={toggleSide}
+      />
+      <WeaponsPanel
+        weapons={weapons.filter((w) => inCountry(w.country_code, country))}
+        placed={placed}
+        placing={placing}
+        onPlace={setPlacing}
+        onCancelPlacing={() => setPlacing(null)}
+        onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
+        onClearAll={() => setPlaced([])}
       />
 
       {status && <div className="map-panel status">{status}</div>}

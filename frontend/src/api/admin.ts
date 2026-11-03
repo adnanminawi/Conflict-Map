@@ -1,6 +1,6 @@
 // Calls used by the admin page.
 import { api } from './client'
-import type { AdminEvent, EventStatus, EventType, ImportSummary, KmlImportInput, LocationType, NewEvent, LayerVersion, SaveLayerInput, SaveLayerResult, LayerImportInput,NewSide,Side } from '../types'
+import type { AdminEvent, EventStatus, EventType, ImportSummary, KmlImportInput, LocationType, NewEvent, LayerVersion, SaveLayerInput, SaveLayerResult, LayerImportInput,NewSide,Side,Weapon,WeaponType,WeaponInput } from '../types'
 
 export async function login(username: string, password: string): Promise<string> {
   const { data } = await api.post<{ token: string }>('/auth/login', { username, password })
@@ -75,4 +75,22 @@ export async function saveLayer(input: SaveLayerInput): Promise<SaveLayerResult>
 export async function createSide(side: NewSide): Promise<Side> {
   const { data } = await api.post<Side>('/sides', side)
   return data
+}
+export async function fetchWeaponTypes(): Promise<WeaponType[]> {
+  const { data } = await api.get<WeaponType[]>('/weapons/types')
+  return data
+}
+
+export async function createWeapon(weapon: WeaponInput): Promise<Weapon> {
+  const { data } = await api.post<Weapon>('/weapons', weapon)
+  return data
+}
+
+export async function updateWeapon(id: number, weapon: WeaponInput): Promise<Weapon> {
+  const { data } = await api.put<Weapon>(`/weapons/${id}`, weapon)
+  return data
+}
+
+export async function deleteWeapon(id: number): Promise<void> {
+  await api.delete(`/weapons/${id}`)
 }

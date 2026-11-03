@@ -191,6 +191,8 @@ export async function setupShapeLayers(map: maplibregl.Map) {
     ]
     // Siren alerts are drawn on top: if there is one here, its own popup opens instead (alertsLayer.ts)
     if (map.getLayer('alerts-fill') && map.queryRenderedFeatures(box, { layers: ['alerts-fill', 'alerts-dots'] }).length > 0) return
+    // A placed weapon's launch point has its own popup (weaponsLayer.ts)
+    if (map.getLayer('weapon-center') && map.queryRenderedFeatures(box, { layers: ['weapon-center'] }).length > 0) return
     const shape = map.queryRenderedFeatures(box, { layers: CLICKABLE })[0]
     if (!shape) return
 

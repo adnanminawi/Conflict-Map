@@ -773,3 +773,119 @@ body,
 .new-side .error {
   flex-basis: 100%;
 }
+/* ---------- Weapon ranges panel (bottom right) ---------- */
+.weapons-panel {
+  bottom: 28px;
+  right: 12px;
+  width: 240px;
+  max-height: 45vh;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.weapons-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #8b95a3;
+}
+
+.weapons-placing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #e6e9ee;
+}
+
+.weapons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weapon-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #c3cad4;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.weapon-choice:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.weapon-choice.active {
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.weapon-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weapon-range {
+  color: #8b95a3;
+  white-space: nowrap;
+}
+
+.weapons-placed-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e6e9ee;
+  border-top: 1px solid #2a313b;
+}
+
+.weapons-placed-title .legend-show-all {
+  margin: 0;
+}
+
+.weapon-placed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #c3cad4;
+}
+
+.weapon-remove {
+  padding: 0 6px;
+  font-size: 16px;
+  line-height: 1;
+  color: #8b95a3;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.weapon-remove:hover {
+  color: #ffffff;
+}
+
+/* Phones: the legend is on the left, so the weapons panel gets the right half */
+@media (max-width: 600px) {
+  .weapons-panel {
+    width: calc(50% - 18px);
+  }
+}

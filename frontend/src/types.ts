@@ -185,3 +185,40 @@ export interface Country {
   name_en: string // 'Yemen'
   name_ar: string // 'اليمن'
 }
+
+// ---------- Weapons ----------
+
+// launcher, drone, fighter… (GET /api/weapons/types)
+export interface WeaponType {
+  id: number
+  code: string // 'launcher'
+  name: string // 'Missile launcher'
+}
+
+// One weapon (GET /api/weapons)
+export interface Weapon {
+  id: number
+  name: string // 'Burkan-2H'
+  range_km: number // the radius drawn on the map
+  source: string | null
+  description: string | null
+  weapon_type_id: number
+  type_code: string
+  type_name: string
+  country_code: string // 'YE'
+  country_name: string // 'Yemen'
+  side_id: number | null // null = the country has no sides
+  side_name: string | null
+  side_color: string | null
+}
+
+// What the admin form sends (POST /api/weapons and PUT /api/weapons/:id)
+export interface WeaponInput {
+  name: string
+  weapon_type_id: number
+  country: string
+  side_id: number | null
+  range_km: number
+  source: string
+  description: string
+}

@@ -58,6 +58,8 @@ export function setupAlertLayers(map: maplibregl.Map) {
   map.on('click', (e) => {
     if (!arePopupsEnabled()) return // the map editor is open
     if (e.originalEvent.target !== map.getCanvas()) return
+    // A placed weapon's launch point has its own popup (weaponsLayer.ts)
+    if (map.getLayer('weapon-center') && map.queryRenderedFeatures(e.point, { layers: ['weapon-center'] }).length > 0) return
     const area = map.queryRenderedFeatures(e.point, { layers: ['alerts-fill', 'alerts-dots'] })[0]
     if (!area) return
 
