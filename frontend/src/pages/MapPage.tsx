@@ -115,7 +115,7 @@ export default function MapPage() {
       }
     }
     load()
-    const timer = setInterval(load, 100000)
+    const timer = setInterval(load, EVENTS_REFRESH_MS)
     return () => clearInterval(timer)
   }, [])
 
