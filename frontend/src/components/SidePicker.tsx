@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createSide } from '../api/admin'
 import { getErrorMessage } from '../api/client'
 import type { Side } from '../types'
+import CountrySelect from './CountrySelect'
 
 interface Props {
   sides: Side[] // every side of every country
@@ -22,8 +23,7 @@ export default function SidePicker({ sides, country, sideId, onCountryChange, on
 
   const countrySides = sides.filter((s) => s.country_code === country)
 
-  function changeCountry(value: string) {
-    const code = value.toUpperCase()
+  function changeCountry(code: string) {
     onCountryChange(code)
     // The chosen side belongs to another country → clear it
     if (sides.find((s) => s.id === sideId)?.country_code !== code) onSideChange(null)
@@ -56,16 +56,9 @@ export default function SidePicker({ sides, country, sideId, onCountryChange, on
 
   return (
     <>
-      <label className="short">
-        Country code
-        <input
-          value={country}
-          onChange={(e) => changeCountry(e.target.value)}
-          maxLength={2}
-          minLength={2}
-          placeholder="YE"
-          required
-        />
+      <label>
+        Country
+        <CountrySelect value={country} onChange={changeCountry} required />
       </label>
 
       <label>
@@ -76,7 +69,7 @@ export default function SidePicker({ sides, country, sideId, onCountryChange, on
           disabled={country.length !== 2}
           required
         >
-          <option value="">{country.length === 2 ? 'Choose a side' : 'Enter the country first'}</option>
+          <option value="">{country.length === 2 ? 'Choose a side' : 'Choose the country first'}</option>
           {countrySides.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}

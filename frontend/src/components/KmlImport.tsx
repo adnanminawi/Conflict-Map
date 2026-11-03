@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchLocationTypes, importKml } from '../api/admin'
 import { getErrorMessage, isUnauthorized } from '../api/client'
 import type { ImportSummary, LocationType } from '../types'
-
+import CountrySelect from './CountrySelect'
 interface Props {
   onLoggedOut: () => void
 }
@@ -91,16 +91,14 @@ export default function KmlImport({ onLoggedOut }: Props) {
             ))}
           </select>
         </label>
-        <label>
-          Country code
-          <input
+         <label>
+          Country
+          <CountrySelect
             value={country}
-            onChange={(e) => {
-              setCountry(e.target.value.toUpperCase())
+            onChange={(code) => {
+              setCountry(code)
               changed()
             }}
-            maxLength={2}
-            placeholder="IR"
           />
         </label>
       </div>

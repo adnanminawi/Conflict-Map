@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createEvent, fetchEventTypes } from '../api/admin'
 import { getErrorMessage, isUnauthorized } from '../api/client'
 import type { EventType } from '../types'
-
+import CountrySelect from './CountrySelect'
 interface Props {
   onLoggedOut: () => void
 }
@@ -86,17 +86,10 @@ export default function EventForm({ onLoggedOut }: Props) {
         </select>
       </label>
 
-      <label>
-        Country code
-        <input
-          value={country}
-          onChange={(e) => setCountry(e.target.value.toUpperCase())}
-          maxLength={2}
-          minLength={2}
-          placeholder="IR"
-          required
-        />
-      </label>
+       <label>
+        Country
+        <CountrySelect value={country} onChange={setCountry} required />
+      </label>  
 
       <div className="section-title">Location</div>
 
