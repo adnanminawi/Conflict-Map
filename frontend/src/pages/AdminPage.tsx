@@ -5,8 +5,9 @@ import EventList from '../components/EventList'
 import { TOKEN_KEY } from '../api/client'
 import KmlImport from '../components/KmlImport'
 import LayerImport from '../components/LayerImport'
+import WeaponsAdmin from '../components/WeaponsAdmin'
 
-type Tab = 'list' | 'add' | 'bases' | 'frontlines'
+type Tab = 'list' | 'add' | 'bases' | 'frontlines' | 'weapons'
 
 
 // The admin page: shows the login form, or the admin tools once logged in.
@@ -55,6 +56,9 @@ export default function AdminPage() {
           <button className={tab === 'frontlines' ? 'tab active' : 'tab'} onClick={() => setTab('frontlines')}>
             Frontlines
           </button>
+          <button className={tab === 'weapons' ? 'tab active' : 'tab'} onClick={() => setTab('weapons')}>
+            Weapons
+          </button>
         </nav>
 
         <div className="topbar-links">
@@ -70,6 +74,7 @@ export default function AdminPage() {
         {tab === 'add' && <EventForm onLoggedOut={handleLogout} />}
         {tab === 'bases' && <KmlImport onLoggedOut={handleLogout} />}
         {tab === 'frontlines' && <LayerImport onLoggedOut={handleLogout} />}
+        {tab === 'weapons' && <WeaponsAdmin onLoggedOut={handleLogout} />}
       </main>
     </div>
   )
