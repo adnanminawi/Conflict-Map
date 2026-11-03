@@ -19,6 +19,7 @@ export async function findById(id: number): Promise<Side | null> {
   return rows[0] ?? null;
 }
 
+
 // Saves a new side and returns its id. Returns null if this country already has a side with this name.
 export async function insert(side: NewSide): Promise<number | null> {
   try {
