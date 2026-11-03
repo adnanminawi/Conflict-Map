@@ -6,7 +6,7 @@ import { locationsRoutes } from './locations.routes';
 import { layersRoutes } from './layers.routes';
 import { alertsRoutes } from './alerts.routes';
 import { sidesRoutes } from './sides.route';
-
+import { countriesRoutes } from './countries.routes';
 
 export const routes = Router();
 
@@ -25,3 +25,4 @@ routes.use('/locations', locationsRoutes);
 routes.use('/layers', layersRoutes);
 routes.use('/alerts', alertsRoutes);
 routes.use('/sides', sidesRoutes);
+routes.use('/countries', countriesRoutes);
