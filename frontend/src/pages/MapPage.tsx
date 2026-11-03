@@ -109,7 +109,7 @@ export default function MapPage() {
       try {
         const list = await fetchEvents()
         setEvents(list)
-        setStatus(list.length === 0 ? 'No confirmed events in the last 7 days' : null)
+        setStatus(null)
       } catch {
         setStatus('Could not load events — is the backend running?')
       }

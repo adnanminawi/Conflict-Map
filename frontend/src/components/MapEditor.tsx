@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type * as maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONStoreFeatures, TerraDraw } from 'terra-draw'
 import { saveLayer } from '../api/admin'
 import { fetchSides } from '../api/sides'
 import { getErrorMessage, isUnauthorized } from '../api/client'
-import { createDraw, fromDraw, toDrawFeatures } from '../map/drawTools'
+import { cancelDrawing, createDraw, finishDrawing, fromDraw, toDrawFeatures } from '../map/drawTools'
 import { DEFAULT_COLOR, enableShapePopups } from '../map/shapesLayer'
 import SidePicker from './SidePicker'
 import type { MapLayer, Side } from '../types'
@@ -20,10 +20,10 @@ type Tool = 'select' | 'area' | 'line' | 'arrow' | 'fighting' | 'explosion' | 't
 
 // Each tool uses one Terra Draw mode. The hint explains how to use it.
 const TOOLS: { tool: Tool; label: string; mode: string; hint: string }[] = [
-  { tool: 'select', label: 'Select', mode: 'select', hint: 'Click a shape to change it. Drag it to move it, drag its corners to reshape it.' },
-  { tool: 'area', label: 'Area', mode: 'polygon', hint: 'Click to add corners. Click the first corner again to finish.' },
-  { tool: 'line', label: 'Line', mode: 'linestring', hint: 'Click to add points. Click the last point again to finish.' },
-  { tool: 'arrow', label: 'Arrow', mode: 'linestring', hint: 'Like a line. The arrowhead goes at the last point.' },
+  { tool: 'select', label: 'Select', mode: 'select', hint: 'Click a shape to change it.' },
+  { tool: 'area', label: 'Area', mode: 'polygon', hint: 'Click to add corners. Double-click (or Enter) to finish. Esc cancels.' },
+  { tool: 'line', label: 'Line', mode: 'linestring', hint: 'Click to add points. Double-click (or Enter) to finish. Esc cancels.' },
+  { tool: 'arrow', label: 'Arrow', mode: 'linestring', hint: 'Like a line: double-click (or Enter) to finish. The arrowhead goes at the last point.' },
   { tool: 'fighting', label: 'Fighting', mode: 'point', hint: 'Click where the fighting is.' },
   { tool: 'explosion', label: 'Explosion', mode: 'point', hint: 'Click where the explosion was.' },
   { tool: 'text', label: 'Text', mode: 'point', hint: 'Click where the text goes, then type it in the panel.' },
@@ -37,6 +37,9 @@ function defaultProps(tool: Tool, color: string) {
   return { icon: tool } // fighting / explosion / text
 }
 
+// Shown while a shape is selected
+const SELECTED_HINT = 'Drag a white corner to move it. Drag a small dot to add a corner. Right-click a corner to delete it.'
+
 const today = new Date().toLocaleDateString('en-CA') // "2026-10-29"
 
 // The admin's editing panel on the map. Only shown when an admin is logged in.
@@ -45,6 +48,8 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
   const toolRef = useRef<Tool>('select') // the 'finish' event needs the current tool
   const colorRef = useRef(DEFAULT_COLOR) // the side's color, for new shapes (the 'finish' event needs it too)
   const keptRef = useRef<GeoJSONStoreFeatures[]>([]) // shapes Terra Draw can't edit: saved unchanged
+  const dblClickRef = useRef<(() => void) | null>(null) // the double-click listener, to remove it when editing stops
+  const justDrawnRef = useRef(false) // true while selecting a shape that was just drawn (don't zoom then)
 
   const [editing, setEditing] = useState<string | null>(null) // name of the layer being edited
   const [pick, setPick] = useState('') // layer name typed / chosen before editing
@@ -55,6 +60,8 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
   const [selected, setSelected] = useState<{ id: string | number; props: Record<string, any> } | null>(null)
   const [date, setDate] = useState(today)
   const [changed, setChanged] = useState(false)
+  const [drawing, setDrawing] = useState(false) // a shape is being drawn right now (not finished yet)
+  const [history, setHistory] = useState({ undo: false, redo: false }) // can undo / redo?
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -101,6 +108,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
     const features = toDrawFeatures(layer?.geojson.features ?? [], () => draw.getFeatureId())
     const results = draw.addFeatures(features)
     keptRef.current = features.filter((_, i) => !results[i].valid)
+    draw.clearUndoRedoHistory() // loading the layer is not something to undo
 
     // A shape was drawn or changed
     draw.on('finish', (id, context) => {
@@ -109,10 +117,36 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
       // New shape: give it its look, then select it so the admin can name it
       draw.updateFeatureProperties(id, defaultProps(toolRef.current, colorRef.current))
       chooseTool('select')
+      justDrawnRef.current = true
       draw.selectFeature(id)
+      justDrawnRef.current = false
     })
-    draw.on('select', (id) => setSelected({ id, props: { ...draw.getSnapshotFeature(id)?.properties } }))
+    draw.on('select', (id) => {
+      setSelected({ id, props: { ...draw.getSnapshotFeature(id)?.properties } })
+      if (!justDrawnRef.current) zoomToIfSmall(id, draw)
+    })
     draw.on('deselect', () => setSelected(null))
+
+    // Drawing started / stopped → show or hide the Finish and Cancel buttons
+    draw.on('change', () => setDrawing(draw.getModeState() === 'drawing'))
+
+    // Something was done, undone or redone
+    draw.on('history', () => {
+      setHistory({ undo: draw.canUndo(), redo: draw.canRedo() })
+      setChanged(true)
+      // After an undo the selected shape may have changed or be gone: read it again
+      setSelected((current) => {
+        const feature = current && draw.getSnapshotFeature(current.id)
+        return feature ? { id: current.id, props: { ...feature.properties } } : null
+      })
+    })
+
+    // Double-click finishes an area / line (instead of zooming the map)
+    map.doubleClickZoom.disable()
+    dblClickRef.current = () => {
+      if (draw.getModeState() === 'drawing') finishDrawing(map)
+    }
+    map.on('dblclick', dblClickRef.current)
 
     drawRef.current = draw
     enableShapePopups(false) // no popups while drawing
@@ -125,13 +159,36 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
   }
 
   function stopEditing() {
+    if (dblClickRef.current) map.off('dblclick', dblClickRef.current)
+    dblClickRef.current = null
+    map.doubleClickZoom.enable()
     drawRef.current?.stop()
     drawRef.current = null
     keptRef.current = []
     enableShapePopups(true)
     setEditing(null)
     setSelected(null)
+    setDrawing(false)
+    setHistory({ undo: false, redo: false })
     onEditingChange(null)
+  }
+
+  // A shape that looks tiny (zoomed out far) has its corners on top of each other: zoom in so they spread out
+  function zoomToIfSmall(id: string | number, draw: TerraDraw) {
+    const geometry = draw.getSnapshotFeature(id)?.geometry
+    if (!geometry || geometry.type === 'Point') return
+    const coords = (geometry.type === 'Polygon' ? geometry.coordinates[0] : geometry.coordinates) as [number, number][]
+    const box = new maplibregl.LngLatBounds(coords[0], coords[0])
+    coords.forEach((c) => box.extend(c))
+
+    const a = map.project(box.getSouthWest())
+    const b = map.project(box.getNorthEast())
+    const size = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y), 1) // in pixels
+    if (size >= 100) return
+
+    // Each zoom level doubles the size on screen: zoom in until the shape is about 300 px wide
+    const zoom = Math.min(map.getZoom() + Math.log2(300 / size), 13)
+    map.easeTo({ center: box.getCenter(), zoom, duration: 500 })
   }
 
   // Change the selected shape (name, color, arrow…)
@@ -229,8 +286,30 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
           </button>
         ))}
       </div>
-      <p className="editor-note">{TOOLS.find((t) => t.tool === tool)!.hint}</p>
+      {/* Undo / redo (also Ctrl+Z / Ctrl+Y on the map) */}
+      <div className="editor-actions">
+        <button className="btn btn-small btn-ghost" onClick={() => drawRef.current?.undo()} disabled={!history.undo} title="Ctrl+Z">
+          ↶ Undo
+        </button>
+        <button className="btn btn-small btn-ghost" onClick={() => drawRef.current?.redo()} disabled={!history.redo} title="Ctrl+Y">
+          ↷ Redo
+        </button>
+      </div>
+
+      <p className="editor-note">{selected ? SELECTED_HINT : TOOLS.find((t) => t.tool === tool)!.hint}</p>
       {message && <p className="editor-note">{message}</p>}
+
+      {/* While an area / line is being drawn */}
+      {drawing && (
+        <div className="editor-actions">
+          <button className="btn btn-small" onClick={() => finishDrawing(map)}>
+            Finish
+          </button>
+          <button className="btn btn-small btn-ghost" onClick={() => cancelDrawing(map)}>
+            Cancel
+          </button>
+        </div>
+      )}
 
       {/* The selected shape */}
       {selected && p && (
