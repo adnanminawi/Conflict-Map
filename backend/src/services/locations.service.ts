@@ -2,6 +2,7 @@ import * as locationsRepository from '../repositories/locations.repository';
 import type { ImportSummary } from '../types/locations.types';
 import { AppError } from '../utils/AppError';
 import { parseKml } from '../utils/kml';
+import { checkCountry } from './countries.service';
 
 export async function getLocations() {
   return locationsRepository.findAll();
@@ -26,9 +27,10 @@ export async function importKml(
   countryCode: string,
   dryRun: boolean,
 ): Promise<ImportSummary> {
-  const country = countryCode.toUpperCase();
+   const country = countryCode.toUpperCase();
   if (!/^[A-Z]{2}$/.test(country)) throw AppError.badRequest('Country must be a 2-letter code, e.g. IR');
-
+  await checkCountry(country);
+  
   const typeId = await locationsRepository.findTypeIdByCode(typeCode);
   if (typeId === null) throw AppError.badRequest(`Unknown location type "${typeCode}"`);
 

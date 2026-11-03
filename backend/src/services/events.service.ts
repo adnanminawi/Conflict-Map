@@ -1,6 +1,7 @@
 import * as eventsRepository from '../repositories/events.repository';
 import type { CreateEventInput,EventStatus  } from '../types/events.types';
 import { AppError } from '../utils/AppError';
+import { checkCountry } from './countries.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -14,6 +15,7 @@ export async function getEventTypes() {
 }
 
 export async function createEvent(input: CreateEventInput, adminId: number) {
+  await checkCountry(input.country_code);
   try {
     const id = await eventsRepository.insert(input, adminId);
     return { id };

@@ -1,7 +1,8 @@
 import * as sidesRepository from '../repositories/sides.repository';
+import { checkCountry } from './countries.service';
 import type { NewSide, Side } from '../types/sides.types';
 import { AppError } from '../utils/AppError';
-import { checkCountry } from './countries.service';
+
 export async function getSides(): Promise<Side[]> {
   return sidesRepository.findAll();
 }
