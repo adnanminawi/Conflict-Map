@@ -7,6 +7,9 @@ import {
   TerraDrawPointMode,
   TerraDrawPolygonMode,
   TerraDrawSelectMode,
+  TerraDrawModeUndoRedo,
+  TerraDrawSessionUndoRedo,
+  TerraDrawUndoRedoKeyboardShortcuts,
   type GeoJSONStoreFeatures,
   type HexColor,
 } from 'terra-draw'
@@ -25,7 +28,17 @@ function num(f: GeoJSONStoreFeatures, key: string, fallback: number): number {
   const value = f.properties[key]
   return typeof value === 'number' ? value : fallback
 }
-
+const HANDLES = {
+  selectionPointWidth: 7,
+  selectionPointColor: '#ffffff' as HexColor,
+  selectionPointOutlineColor: '#111111' as HexColor,
+  selectionPointOutlineWidth: 2,
+  midPointWidth: 4,
+  midPointColor: '#ffffff' as HexColor,
+  midPointOpacity: 0.55,
+  midPointOutlineColor: '#111111' as HexColor,
+  midPointOutlineWidth: 1,
+}
 // Creates the drawing tool on the map. Shapes are drawn in their own colors.
 export function createDraw(map: maplibregl.Map): TerraDraw {
   // Allowed while selected: move the shape, drag / add / delete its corners
@@ -33,6 +46,11 @@ export function createDraw(map: maplibregl.Map): TerraDraw {
 
   return new TerraDraw({
     adapter: new TerraDrawMapLibreGLAdapter({ map }),
+    undoRedo: {
+      sessionLevel: new TerraDrawSessionUndoRedo(),
+      modeLevel: new TerraDrawModeUndoRedo(),
+      keyboardShortcuts: new TerraDrawUndoRedoKeyboardShortcuts(),
+    },
     modes: [
       new TerraDrawPolygonMode({
         styles: {
@@ -59,6 +77,7 @@ export function createDraw(map: maplibregl.Map): TerraDraw {
       new TerraDrawSelectMode({
         // Delete only with the panel's button (so the panel always knows what changed). Escape = deselect.
         keyEvents: { deselect: 'Escape', delete: null, rotate: null, scale: null },
+        styles: HANDLES,
         flags: {
           polygon: { feature: editable },
           linestring: { feature: editable },
@@ -97,3 +116,10 @@ export function fromDraw(snapshot: GeoJSONStoreFeatures[]): Feature[] {
     .filter((f) => !HELPER_PROPERTIES.some((key) => f.properties[key]))
     .map((f) => ({ type: 'Feature', geometry: f.geometry, properties: f.properties }))
 }
+function pressKey(map: maplibregl.Map, key: string) {
+  for (const type of ['keydown', 'keyup']) {
+    map.getCanvas().dispatchEvent(new KeyboardEvent(type, { key, bubbles: true }))
+  }
+}
+export const finishDrawing = (map: maplibregl.Map) => pressKey(map, 'Enter')
+export const cancelDrawing = (map: maplibregl.Map) => pressKey(map, 'Escape')
