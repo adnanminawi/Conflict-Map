@@ -177,3 +177,11 @@ export interface AlertsResponse {
   alerts: MapAlert[]
   areas: MapAlertArea[]
 }
+// ---------- Countries ----------
+
+// One country (GET /api/countries)
+export interface Country {
+  code: string // 'YE'
+  name_en: string // 'Yemen'
+  name_ar: string // 'اليمن'
+}
