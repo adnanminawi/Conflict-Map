@@ -25,7 +25,8 @@ export interface Weapon {
 export interface WeaponInput {
   name: string;
   weaponTypeId: number;
-  sideId: number;
+  countryCode: string;
+  sideId: number | null;
   rangeKm: number;
   source: string | null;
   description: string | null;

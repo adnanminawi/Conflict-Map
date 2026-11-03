@@ -20,6 +20,7 @@ export default function CountrySelect({ value, onChange, required }: Props) {
       .catch(() => setError(true))
   }, [])
 
+  
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} required={required}>
       <option value="">{error ? 'Could not load countries' : 'Choose a country…'}</option>
