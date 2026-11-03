@@ -2,18 +2,19 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { db } from '../config/db';
 import type { Weapon, WeaponInput, WeaponType } from '../types/weapons.types';
 
-
-
-// Every weapon, sorted by country, side, then name
+// Every weapon, sorted by country, side, then name.
+// LEFT JOIN sides: a weapon of a country without sides has no side (side_name, side_color = null).
 export async function findAll(): Promise<Weapon[]> {
   const [rows] = await db.execute<(Weapon & RowDataPacket)[]>(
     `SELECT w.id, w.name, w.range_km, w.source, w.description,
-         w.weapon_type_id, t.code AS type_code, t.name AS type_name,
-         w.side_id, s.name AS side_name, s.color AS side_color, s.country_code
-    FROM weapons w
-    JOIN weapon_types t ON t.id = w.weapon_type_id
-    JOIN sides s ON s.id = w.side_id
-    ORDER BY s.country_code, s.name, w.name`,
+            w.weapon_type_id, t.code AS type_code, t.name AS type_name,
+            w.country_code, c.name_en AS country_name,
+            w.side_id, s.name AS side_name, s.color AS side_color
+       FROM weapons w
+       JOIN weapon_types t ON t.id = w.weapon_type_id
+       JOIN countries c ON c.code = w.country_code
+       LEFT JOIN sides s ON s.id = w.side_id
+      ORDER BY w.country_code, s.name, w.name`,
   );
   return rows;
 }
@@ -22,12 +23,16 @@ export async function findAll(): Promise<Weapon[]> {
 export async function findById(id: number): Promise<Weapon | null> {
   const [rows] = await db.execute<(Weapon & RowDataPacket)[]>(
     `SELECT w.id, w.name, w.range_km, w.source, w.description,
-         w.weapon_type_id, t.code AS type_code, t.name AS type_name,
-         w.side_id, s.name AS side_name, s.color AS side_color, s.country_code
-    FROM weapons w
-    JOIN weapon_types t ON t.id = w.weapon_type_id
-    JOIN sides s ON s.id = w.side_id
-    WHERE w.id = ?`, [id]);
+            w.weapon_type_id, t.code AS type_code, t.name AS type_name,
+            w.country_code, c.name_en AS country_name,
+            w.side_id, s.name AS side_name, s.color AS side_color
+       FROM weapons w
+       JOIN weapon_types t ON t.id = w.weapon_type_id
+       JOIN countries c ON c.code = w.country_code
+       LEFT JOIN sides s ON s.id = w.side_id
+      WHERE w.id = ?`,
+    [id],
+  );
   return rows[0] ?? null;
 }
 
@@ -37,13 +42,13 @@ export async function findTypes(): Promise<WeaponType[]> {
   return rows;
 }
 
-// Saves a new weapon and returns its id. Returns null if this side already has a weapon with this name.
+// Saves a new weapon and returns its id. Returns null if this country already has a weapon with this name.
 export async function insert(weapon: WeaponInput): Promise<number | null> {
   try {
     const [result] = await db.execute<ResultSetHeader>(
-      `INSERT INTO weapons (weapon_type_id, side_id, name, range_km, source, description)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [weapon.weaponTypeId, weapon.sideId, weapon.name, weapon.rangeKm, weapon.source, weapon.description],
+      `INSERT INTO weapons (weapon_type_id, country_code, side_id, name, range_km, source, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [weapon.weaponTypeId, weapon.countryCode, weapon.sideId, weapon.name, weapon.rangeKm, weapon.source, weapon.description],
     );
     return result.insertId;
   } catch (err: any) {
@@ -52,14 +57,14 @@ export async function insert(weapon: WeaponInput): Promise<number | null> {
   }
 }
 
-// Changes a weapon. Returns 'not_found', 'duplicate' (same name for the same side) or 'ok'.
+// Changes a weapon. Returns 'not_found', 'duplicate' (same name in the same country) or 'ok'.
 export async function update(id: number, weapon: WeaponInput): Promise<'ok' | 'not_found' | 'duplicate'> {
   try {
     const [result] = await db.execute<ResultSetHeader>(
       `UPDATE weapons
-          SET weapon_type_id = ?, side_id = ?, name = ?, range_km = ?, source = ?, description = ?
+          SET weapon_type_id = ?, country_code = ?, side_id = ?, name = ?, range_km = ?, source = ?, description = ?
         WHERE id = ?`,
-      [weapon.weaponTypeId, weapon.sideId, weapon.name, weapon.rangeKm, weapon.source, weapon.description, id],
+      [weapon.weaponTypeId, weapon.countryCode, weapon.sideId, weapon.name, weapon.rangeKm, weapon.source, weapon.description, id],
     );
     return result.affectedRows === 0 ? 'not_found' : 'ok';
   } catch (err: any) {
