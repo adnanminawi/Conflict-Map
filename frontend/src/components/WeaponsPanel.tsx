@@ -103,7 +103,7 @@ export default function WeaponsPanel({ weapons, placed, placing, onPlace, onCanc
                   </button>
                 </div>
               ) : (
-                <p className="reach-hint">Pick a weapon, then click the map to see how far it reaches.</p>
+                weapons.length > 0 && <p className="reach-hint">Pick a weapon, then click the map to see how far it reaches.</p>
               )}
 
               {weapons.length === 0 && <p className="reach-hint">No weapons listed for this country yet.</p>}
