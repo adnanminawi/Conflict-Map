@@ -11,8 +11,20 @@ import { arePopupsEnabled, enableShapePopups, setupShapeLayers, showShapes } fro
 import { setupAlertLayers, showAlerts, ALERT_MINUTES } from '../map/alertsLayer'
 import { computeReach, highlightReach, reachBounds, setupReachLayers, showReach } from '../map/reachLayer'
 import { buildPopup } from '../map/popup'
-import { ALL, ALL_VISIBLE, ALERTS_COUNTRY, countryBox, countryName, findCountries, inCountry, keepShape, sidesInCountry, visibleAlertTypes, type Category, type Visible, } from '../map/filters'
-
+import {
+  ALL,
+  ALL_VISIBLE,
+  ALERTS_COUNTRY,
+  countryBox,
+  countryName,
+  findCountries,
+  inCountry,
+  keepShape,
+  sidesInCountry,
+  visibleAlertTypes,
+  type Category,
+  type Visible,
+} from '../map/filters'
 import MapLegend from '../components/MapLegend'
 import CountryTabs from '../components/CountryTabs'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
@@ -32,7 +44,7 @@ export default function MapPage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [map, setMap] = useState<maplibregl.Map | null>(null) // set once the map is ready
-  const nextPlacedId = useRef(1);
+  const nextPlacedId = useRef(1) // a number for each placed weapon
   // Data from the backend
   const [locations, setLocations] = useState<MapLocation[]>([])
   const [events, setEvents] = useState<MapEvent[]>([])
@@ -56,7 +68,6 @@ export default function MapPage() {
   const [reachOn, setReachOn] = useState(false) // "reach from the border" of the selected country
   const [reachLoading, setReachLoading] = useState(false)
   const [reachError, setReachError] = useState('')
-
 
   async function loadLayers() {
     try {
@@ -154,10 +165,11 @@ export default function MapPage() {
     return () => markers.forEach((m) => m.remove())
   }, [map, locations, visible, country])
 
+  // Reach from the border of the selected country: one ring per distance its weapons reach
   useEffect(() => {
     if (!map || !reachOn || country === ALL) return
     const kms = weapons.filter((w) => w.country_code === country).map((w) => w.range_km)
-    let stop = () => { }
+    let stop = () => {}
     let cancelled = false
 
     setReachLoading(true)
@@ -172,7 +184,7 @@ export default function MapPage() {
           return
         }
         stop = showReach(map, reach)
-        const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 290 } : 30
+        const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 70 } : 30
         map.fitBounds(reachBounds(reach), { padding, duration: 800 })
       })
       .catch(() => !cancelled && setReachError('Could not draw the reach. Check your connection and try again.'))
@@ -221,7 +233,7 @@ export default function MapPage() {
     showAlerts(map, { ...alerts, alerts: alerts.alerts.filter((a) => types.includes(a.type)) })
   }, [map, alerts, visible, country])
 
-
+  // Placed weapons: the newest one's ring grows once
   useEffect(() => {
     if (!map) return
     const stop = showWeapons(map, placed, justPlacedId.current)
@@ -243,8 +255,8 @@ export default function MapPage() {
       justPlacedId.current = id
       setPlaced((list) => [...list, { id, weapon, center }])
       setPlacing(null)
-      // Show the whole reach: zoom so the circle fits (room for the legend on the left and this panel on the right)
-      const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 270 } : 30
+      // Show the whole reach: zoom so the circle fits (room for the box on the left and the zoom buttons on the right)
+      const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 70 } : 30
       map!.fitBounds(rangeBounds(center, weapon.range_km), { padding, duration: 800 })
     }
     function onKey(e: KeyboardEvent) {
@@ -262,9 +274,6 @@ export default function MapPage() {
     }
   }, [map, placing])
 
-
-
-
   // ---------- 4. Visitor actions ----------
 
   // Country tab: filter, then zoom to that country ("All" → back to the start view)
@@ -279,7 +288,7 @@ export default function MapPage() {
       return
     }
     const box = countryBox(code, locations, events, layers)
-    // Leave room for the header (top), the legend (left) and the zoom buttons (right). Phones: small margins.
+    // Leave room for the tabs (top), the box (left) and the zoom buttons (right). Phones: small margins.
     const padding = window.innerWidth > 600 ? { top: 90, bottom: 40, left: 290, right: 70 } : 40
     if (box) map.fitBounds(box, { padding, maxZoom: 9 })
   }
@@ -298,48 +307,41 @@ export default function MapPage() {
   }
 
   const countries = findCountries(locations, events, layers)
-  const eventCount = events.filter((e) => inCountry(e.country_code, country)).length
 
   return (
     <>
       <div ref={containerRef} className="map" />
 
-      {/* Top-left: name + how many events are shown */}
-      <div className="map-panel map-header">
-        <div className="brand">
-          <span className="live-dot" /> Conflict Map
-        </div>
-        <div className="map-subtitle">
-          {eventCount} confirmed {eventCount === 1 ? 'event' : 'events'} · last 7 days
-        </div>
-      </div>
-
       <CountryTabs countries={countries} selected={country} onSelect={selectCountry} />
 
-      <MapLegend
-        visible={visible}
-        onToggle={toggle}
-        onShowAll={showAll}
-        sides={sidesInCountry(layers, country)}
-        hiddenSides={hiddenSides}
-        onToggleSide={toggleSide}
-      />
-      <WeaponsPanel
-        weapons={weapons.filter((w) => inCountry(w.country_code, country))}
-        placed={placed}
-        placing={placing}
-        onPlace={setPlacing}
-        onCancelPlacing={() => setPlacing(null)}
-        onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
-        onClearAll={() => setPlaced([])}
-        reach={country === ALL ? null : { countryName: countryName(country), on: reachOn, loading: reachLoading, error: reachError }}
-        onToggleReach={() => setReachOn((on) => !on)}
-        onHoverWeapon={(km) => map && reachOn && highlightReach(map, km)}
-        showCountries={country === ALL}
-        onSelectCountry={selectCountry}
-      />
-
-      {status && <div className="map-panel status">{status}</div>}
+      {/* Left side: messages and the weapons box on top, the map key at the bottom.
+          They share the height of the screen, so they never cover each other. */}
+      <div className="map-side">
+        {status && <div className="map-panel status">{status}</div>}
+        <WeaponsPanel
+          weapons={weapons.filter((w) => inCountry(w.country_code, country))}
+          placed={placed}
+          placing={placing}
+          onPlace={setPlacing}
+          onCancelPlacing={() => setPlacing(null)}
+          onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
+          onClearAll={() => setPlaced([])}
+          reach={country === ALL ? null : { countryName: countryName(country), on: reachOn, loading: reachLoading, error: reachError }}
+          onToggleReach={() => setReachOn((on) => !on)}
+          onHoverWeapon={(km) => map && reachOn && highlightReach(map, km)}
+          showCountries={country === ALL}
+          onSelectCountry={selectCountry}
+        />
+        <MapLegend
+          visible={visible}
+          onToggle={toggle}
+          onShowAll={showAll}
+          sides={sidesInCountry(layers, country)}
+          hiddenSides={hiddenSides}
+          onToggleSide={toggleSide}
+          autoFold={country !== ALL && weapons.some((w) => w.country_code === country)}
+        />
+      </div>
 
       {isAdmin && map && (
         <Suspense fallback={null}>

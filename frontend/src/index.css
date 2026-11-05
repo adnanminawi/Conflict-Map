@@ -5,8 +5,11 @@
   --border: #2a313b;
   --text: #e6e9ee;
   --muted: #8b95a3;
-  --accent: #e5484d;
-  --accent-hover: #f05a5f;
+  /* Buttons and selected tabs are light, not colored: on the map, color is kept for the data
+     (red rockets, side colors, amber reach) */
+  --accent: #e6e9ee;
+  --accent-hover: #ffffff;
+  --on-accent: #0e1217; /* text on an accent background */
   --input: #0e1217;
   --success: #3fb27f;
 }
@@ -16,7 +19,16 @@ body,
 #root {
   margin: 0;
   height: 100%;
-  font-family: system-ui, sans-serif;
+  /* IBM Plex Sans for Latin text, IBM Plex Sans Arabic for Arabic text (same design, made to sit together) */
+  font-family: 'IBM Plex Sans', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+}
+
+/* Buttons and form fields use the page font (browsers give them their own by default) */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 .map {
@@ -36,17 +48,6 @@ body,
   font-size: 13px;
 }
 
-.map-header {
-  top: 12px;
-  left: 12px;
-  padding: 12px 14px;
-}
-
-.map-subtitle {
-  margin-top: 4px;
-  color: #8b95a3;
-}
-
 /* Small red teardrop, like the event markers (map key) */
 .legend-pin {
   width: 12px;
@@ -57,39 +58,121 @@ body,
   transform: rotate(-45deg);
 }
 
+/* "Loading events…" / "Could not load events…": the first box on the left side */
 .status {
-  top: 64px;
-  /* under the country tabs */
-  left: 50%;
-  transform: translateX(-50%);
   padding: 8px 14px;
-  white-space: nowrap;
 }
 
-/* On phones: put the status message under the header */
-@media (max-width: 600px) {
-  .status {
-    top: 128px;
-    /* under the header and the tabs */
-    left: 12px;
-    transform: none;
-    white-space: normal;
-    right: 60px;
+/* ---------- Left side of the map: weapons box on top, map key at the bottom ----------
+   One column for both, so they share the height and never cover each other. */
+.map-side {
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  bottom: 28px;
+  left: 12px;
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none; /* the empty space between the boxes lets clicks go through to the map */
+}
+
+.map-side > * {
+  pointer-events: auto;
+}
+
+.map-side .map-panel {
+  position: relative; /* inside the column, not placed on the map on their own */
+  flex-shrink: 0;
+}
+
+/* Short screen: the map key gets smaller first (it scrolls), so the weapons list keeps its 4 rows.
+   The weapons box only shrinks if it would take more than 60% of the height. */
+.map-side .weapons-panel {
+  max-height: 60%;
+}
+
+.map-side .map-legend {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+/* The map key stays at the bottom */
+.map-side .map-legend {
+  margin-top: auto;
+}
+
+/* Smaller screens: the country tabs are full width at the top, so the column starts under them */
+@media (max-width: 900px) {
+  .map-side {
+    top: 64px;
   }
 }
 
+/* Popups: dark like the boxes on the map (MapLibre makes them white by default).
+   Each rule starts with .maplibregl-popup so it wins over MapLibre's own CSS, which loads after this file. */
+.maplibregl-popup .maplibregl-popup-content {
+  padding: 10px 26px 10px 12px;
+  color: #e6e9ee;
+  background: rgba(14, 18, 23, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.maplibregl-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: rgba(14, 18, 23, 0.96);
+}
+
+.maplibregl-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: rgba(14, 18, 23, 0.96);
+}
+
+.maplibregl-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: rgba(14, 18, 23, 0.96);
+}
+
+.maplibregl-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: rgba(14, 18, 23, 0.96);
+}
+
+.maplibregl-popup .maplibregl-popup-close-button {
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  font-size: 16px;
+  color: #8b95a3;
+  border-radius: 4px;
+}
+
+.maplibregl-popup .maplibregl-popup-close-button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .popup h3 {
-  margin: 0 0 4px;
-  font-size: 15px;
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .popup p {
-  margin: 2px 0;
+  margin: 3px 0 0;
   font-size: 13px;
+  line-height: 1.4;
+  color: #c3cad4;
 }
 
 .popup .type {
-  font-weight: 600;
+  margin-top: 0;
+  font-size: 12px;
+  color: #8b95a3;
 }
 
 /* ---------- Admin page ---------- */
@@ -124,21 +207,9 @@ body,
   color: var(--text);
 }
 
-/* Brand: red "live" dot + name */
+/* The site name */
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.live-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.2);
+  font-weight: 600;
 }
 
 /* Centered content */
@@ -216,7 +287,7 @@ body,
 .card select:focus,
 .card textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.2);
+  box-shadow: 0 0 0 3px rgba(230, 233, 238, 0.15);
 }
 
 /* Makes the calendar icon visible on dark backgrounds */
@@ -243,7 +314,7 @@ body,
   border: none;
   border-radius: 8px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -537,6 +608,7 @@ body,
 }
 
 .tool.active {
+  color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);
 }
@@ -632,14 +704,15 @@ body,
 }
 
 .country-tab.active {
-  color: #ffffff;
+  color: var(--on-accent);
+  font-weight: 500;
   background: var(--accent);
 }
 
 /* Smaller screens: the tabs go under the header, full width */
 @media (max-width: 900px) {
   .country-tabs {
-    top: 76px;
+    top: 12px;
     left: 12px;
     right: 60px;
     transform: none;
@@ -697,9 +770,6 @@ body,
    Both panels share the same pieces: a title that folds the panel, named groups, and rows. */
 .map-legend,
 .weapons-panel {
-  bottom: 28px;
-  width: 232px;
-  max-height: calc(100% - 200px);
   padding: 4px 0 10px;
   display: flex;
   flex-direction: column;
@@ -708,11 +778,8 @@ body,
 }
 
 .map-legend {
-  left: 12px;
   gap: 0;
 }
-
-
 
 /* Title: folds / unfolds the panel */
 .key-title {
@@ -780,6 +847,7 @@ body,
   cursor: default;
 }
 
+.country-tab:focus-visible,
 .key-row:focus-visible,
 .key-title:focus-visible,
 .key-reset:focus-visible,
@@ -952,18 +1020,18 @@ body,
   color: #8b95a3;
 }
 
-/* What is on the map now */
+/* The weapon reach box: same pieces as the map key */
 .weapons-panel {
-  right: 12px;
-  width: 248px;
   overflow: hidden;
   /* the list inside scrolls, not the whole box */
 }
 
-/* The weapons (or countries) list: takes the space left in the box and scrolls when there are many */
+/* The weapons (or countries) list: shows 4, then scrolls.
+   4 weapons = group name (27px) + 4 rows of 51px. 4 countries = 4 rows of 45px. */
 .reach-list {
   flex: 1 1 auto;
   min-height: 45px;
+  /* one row: on a short screen the list can shrink, but always shows at least one */
   max-height: 231px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1023,16 +1091,6 @@ body,
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Phones: the two panels share the bottom of the screen */
-@media (max-width: 600px) {
-
-  .map-legend,
-  .weapons-panel {
-    width: calc(50% - 18px);
-    max-height: 55%;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .key-row {
     transition: none;
@@ -1086,6 +1144,33 @@ body,
   color: #ff9b9e;
 }
 
+/* No weapons (e.g. Egypt): no empty space, the box shrinks to its text */
 .reach-list:empty {
   display: none;
+}
+
+
+/* Scrollbars inside the boxes on the map: thin and dark (the browser's default is a wide light bar) */
+.map-panel,
+.map-panel * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* Older Chrome / Safari use these instead */
+.map-panel::-webkit-scrollbar,
+.map-panel ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.map-panel::-webkit-scrollbar-thumb,
+.map-panel ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+
+.map-panel::-webkit-scrollbar-track,
+.map-panel ::-webkit-scrollbar-track {
+  background: transparent;
 }

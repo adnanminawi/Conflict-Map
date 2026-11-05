@@ -29,7 +29,7 @@ export default function LoginForm({ onLogin }: Props) {
   return (
     <form className="card narrow" onSubmit={handleSubmit}>
       <div className="brand">
-        <span className="live-dot" /> Conflict Map
+       Conflict Map
       </div>
       <h2>Admin login</h2>
       <p className="muted">Sign in to add and verify events.</p>
