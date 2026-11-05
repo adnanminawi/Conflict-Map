@@ -1,5 +1,6 @@
-// Range circles of the weapons a visitor places on the map, drawn like a radar:
-// a circle of the real range in km, rings at 25 / 50 / 75 %, and a turning sweep.
+// Range rings of the weapons a visitor places on the map: a thin ring at the real range in km,
+// a light fill, the launch point and two labels (name at the point, km on the ring).
+// When a weapon is placed its ring grows out from the launch point once, so you see where it came from.
 // Nothing is saved: the placed weapons live in MapPage's state and are gone after a refresh.
 import * as maplibregl from 'maplibre-gl'
 import type { Feature, FeatureCollection, Position } from 'geojson'
@@ -13,15 +14,14 @@ export interface PlacedWeapon {
   center: [number, number] // [lng, lat]
 }
 
-const RADAR_GREEN = '#22c55e' // used when the weapon has no side color
+export const DEFAULT_RANGE_COLOR = '#9fb3c8' // for weapons with no side (no side color)
 const EARTH_RADIUS_KM = 6371
-const SWEEP_SECONDS = 4 // one full turn of the sweep
-const RINGS = [0.25, 0.5, 0.75] // inner rings, as a part of the range
+const GROW_MS = 650 // how long the ring takes to grow when placed
 
-const colorOf = (w: Weapon) => w.side_color ?? RADAR_GREEN
+const colorOf = (w: Weapon) => w.side_color ?? DEFAULT_RANGE_COLOR
 
 // The point `km` away from `center` in direction `bearing` (degrees clockwise from north),
-// following the Earth's curve. That's why a 1,000 km circle looks taller far from the equator: it is correct.
+// following the Earth's curve. That's why a 1,000 km ring looks taller far from the equator: it is correct.
 function destination([lng, lat]: [number, number], km: number, bearing: number): Position {
   const toRad = Math.PI / 180
   const d = km / EARTH_RADIUS_KM
@@ -40,15 +40,7 @@ function circle(center: [number, number], km: number, steps = 128): Position[] {
   return points
 }
 
-// A pie slice from bearing `from` to `to`
-function slice(center: [number, number], km: number, from: number, to: number): Position[] {
-  const points: Position[] = [center]
-  for (let a = from; a <= to; a += 2) points.push(destination(center, km, a))
-  points.push(center)
-  return points
-}
-
-// The box around a range circle: [[west, south], [east, north]], for zooming the map to it
+// The box around a range ring: [[west, south], [east, north]], for zooming the map to it
 export function rangeBounds(center: [number, number], km: number): [[number, number], [number, number]] {
   const [, north] = destination(center, km, 0)
   const [east] = destination(center, km, 90)
@@ -65,68 +57,69 @@ export function rangeBounds(center: [number, number], km: number): [[number, num
 export function setupWeaponLayers(map: maplibregl.Map) {
   const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
   map.addSource('weapon-ranges', { type: 'geojson', data: empty })
-  map.addSource('weapon-sweep', { type: 'geojson', data: empty })
 
   const color = ['get', 'color'] as any
   const kind = (k: string) => ['==', ['get', 'kind'], k] as any
 
-  // The area in range: a light fill + a strong edge + thin inner rings
-  map.addLayer({ id: 'weapon-fill', type: 'fill', source: 'weapon-ranges', filter: kind('area'), paint: { 'fill-color': color, 'fill-opacity': 0.07 } })
+  // The area in reach: a very light fill and a thin, solid ring
+  map.addLayer({ id: 'weapon-fill', type: 'fill', source: 'weapon-ranges', filter: kind('area'), paint: { 'fill-color': color, 'fill-opacity': 0.08 } })
   map.addLayer({
-    id: 'weapon-rings',
+    id: 'weapon-edge',
     type: 'line',
     source: 'weapon-ranges',
-    filter: kind('ring'),
-    paint: { 'line-color': color, 'line-opacity': 0.45, 'line-width': 1, 'line-dasharray': [2, 2] },
-  })
-  map.addLayer({ id: 'weapon-edge', type: 'line', source: 'weapon-ranges', filter: kind('area'), paint: { 'line-color': color, 'line-width': 2 } })
-
-  // The sweep: a bright slice with a fading tail, and the line in front
-  map.addLayer({
-    id: 'weapon-sweep-fill',
-    type: 'fill',
-    source: 'weapon-sweep',
-    filter: ['==', ['geometry-type'], 'Polygon'],
-    paint: { 'fill-color': color, 'fill-opacity': ['get', 'opacity'] },
-  })
-  map.addLayer({
-    id: 'weapon-sweep-line',
-    type: 'line',
-    source: 'weapon-sweep',
-    filter: ['==', ['geometry-type'], 'LineString'],
-    paint: { 'line-color': color, 'line-width': 2, 'line-opacity': 0.9 },
+    filter: kind('area'),
+    paint: { 'line-color': color, 'line-width': 2, 'line-opacity': 0.95 },
   })
 
-  // The launch point + its name, and the km of each ring
+  // The launch point: a dark dot with a ring in the side's color
   map.addLayer({
     id: 'weapon-center',
     type: 'circle',
     source: 'weapon-ranges',
     filter: kind('center'),
-    paint: { 'circle-radius': 6, 'circle-color': color, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 },
+    paint: { 'circle-radius': 5, 'circle-color': '#0e1217', 'circle-stroke-color': color, 'circle-stroke-width': 2.5 },
   })
+
+  // Name under the launch point, range just above the top of the ring
+  const textPaint = { 'text-color': '#e6e9ee', 'text-halo-color': 'rgba(14, 18, 23, 0.9)', 'text-halo-width': 1.5 }
   map.addLayer({
-    id: 'weapon-labels',
+    id: 'weapon-name',
     type: 'symbol',
     source: 'weapon-ranges',
-    filter: ['in', ['get', 'kind'], ['literal', ['center', 'ring-label']]],
+    filter: kind('center'),
+    layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-offset': [0, 1.2], 'text-anchor': 'top' },
+    paint: textPaint,
+  })
+  map.addLayer({
+    id: 'weapon-km',
+    type: 'symbol',
+    source: 'weapon-ranges',
+    filter: kind('km'),
     layout: {
       'text-field': ['get', 'label'],
       'text-font': ['Noto Sans Regular'],
-      'text-size': ['case', kind('center'), 12, 10],
-      'text-offset': ['case', kind('center'), ['literal', [0, 1.4]], ['literal', [0, -0.6]]],
+      'text-size': 11,
+      'text-anchor': 'bottom',
+      'text-offset': [0, -0.3],
       'text-allow-overlap': true,
     },
-    paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0, 0, 0, 0.8)', 'text-halo-width': 1.5 },
+    paint: textPaint,
   })
 
-  // Click the launch point → name, type, range, who has it, source
+  // Click the launch point → what it is, how far it reaches, who has it, where the number comes from
   map.on('click', 'weapon-center', (e) => {
     const p = e.features?.[0]?.properties
     if (!p) return
     new maplibregl.Popup({ offset: 10 })
       .setLngLat(e.lngLat)
-      .setDOMContent(buildPopup(p.name, p.type_name, [`Range ≈ ${Number(p.range_km).toLocaleString()} km`, p.owner, p.source ? `Source: ${p.source}` : 'Source not given', 'Range estimates are approximate.']))
+      .setDOMContent(
+        buildPopup(p.name, p.type_name, [
+          `Reaches about ${Number(p.range_km).toLocaleString()} km`,
+          p.owner,
+          p.source ? `Source: ${p.source}` : 'No source given for this range',
+          'Ranges are public estimates and can be wrong.',
+        ]),
+      )
       .addTo(map)
   })
   map.on('mouseenter', 'weapon-center', () => (map.getCanvas().style.cursor = 'pointer'))
@@ -135,71 +128,58 @@ export function setupWeaponLayers(map: maplibregl.Map) {
 
 // ---------- Drawing ----------
 
-// The circles, rings and labels of the placed weapons (they don't move, so they are drawn once per change)
-export function showWeapons(map: maplibregl.Map, placed: PlacedWeapon[]) {
+// Puts the rings on the map. `growing` = one weapon drawn at a part of its range (0 → 1) while it grows.
+function draw(map: maplibregl.Map, placed: PlacedWeapon[], growing?: { id: number; part: number }) {
   const features: Feature[] = []
-  for (const { weapon: w, center } of placed) {
+  for (const { id, weapon: w, center } of placed) {
     const color = colorOf(w)
-    const km = w.range_km
-    const owner = w.side_name ? `${w.side_name} · ${w.country_name}` : w.country_name
+    const km = growing?.id === id ? w.range_km * growing.part : w.range_km
+    const owner = w.side_name ? `${w.side_name}, ${w.country_name}` : w.country_name
 
-    features.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [circle(center, km)] }, properties: { kind: 'area', color } })
-    for (const part of RINGS) {
-      features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: circle(center, km * part) }, properties: { kind: 'ring', color } })
-    }
-    for (const part of [...RINGS, 1]) {
-      features.push({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: destination(center, km * part, 0) }, // on the north side
-        properties: { kind: 'ring-label', label: `${Math.round(km * part).toLocaleString()} km` },
-      })
-    }
+    features.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [circle(center, Math.max(km, 0.5))] }, properties: { kind: 'area', color } })
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: destination(center, km, 0) }, // top of the ring
+      properties: { kind: 'km', color, label: `${w.range_km.toLocaleString()} km` },
+    })
     features.push({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: center },
-      properties: { kind: 'center', color, label: w.name, name: w.name, type_name: w.type_name, range_km: km, owner, source: w.source },
+      properties: { kind: 'center', color, name: w.name, type_name: w.type_name, range_km: w.range_km, owner, source: w.source },
     })
   }
   map.getSource<maplibregl.GeoJSONSource>('weapon-ranges')?.setData({ type: 'FeatureCollection', features })
 }
 
-// The turning sweep. Returns a function that stops it.
-// It redraws about 30 times a second, and only while weapons are placed.
-export function startSweep(map: maplibregl.Map, placed: PlacedWeapon[]): () => void {
-  const source = map.getSource<maplibregl.GeoJSONSource>('weapon-sweep')
-  if (!source || placed.length === 0) {
-    source?.setData({ type: 'FeatureCollection', features: [] })
+// Shows the placed weapons. If `newId` is given, that weapon's ring grows out from its launch point first.
+// Returns a function that stops the growing (used when the list changes before it's done).
+export function showWeapons(map: maplibregl.Map, placed: PlacedWeapon[], newId?: number): () => void {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (newId === undefined || reducedMotion) {
+    draw(map, placed)
     return () => {}
   }
 
   let frame = 0
-  let last = 0
-  function draw(time: number) {
-    frame = requestAnimationFrame(draw)
-    if (time - last < 33) return // ~30 frames per second is smooth enough and saves battery
-    last = time
-
-    const angle = ((time / 1000 / SWEEP_SECONDS) * 360) % 360
-    const features: Feature[] = []
-    for (const { weapon: w, center } of placed) {
-      const color = colorOf(w)
-      const km = w.range_km
-      // Bright slice right behind the line, then two fainter ones: a fading tail
-      for (const [from, to, opacity] of [
-        [angle - 12, angle, 0.32],
-        [angle - 28, angle - 12, 0.16],
-        [angle - 50, angle - 28, 0.06],
-      ]) {
-        features.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [slice(center, km, from, to)] }, properties: { color, opacity } })
-      }
-      features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: [center, destination(center, km, angle)] }, properties: { color } })
-    }
-    source!.setData({ type: 'FeatureCollection', features })
+  let start = 0
+  function step(now: number) {
+    if (!start) start = now
+    const t = Math.min((now - start) / GROW_MS, 1)
+    const part = 1 - Math.pow(1 - t, 3) // fast at first, then slows down as it reaches the range
+    draw(map, placed, { id: newId!, part })
+    if (t < 1) frame = requestAnimationFrame(step)
   }
-  frame = requestAnimationFrame(draw)
+  const begin = () => (frame = requestAnimationFrame(step))
+
+  // Grow only once the map has stopped moving (it zooms out to fit the ring first).
+  // Growing during the zoom makes the ring flicker, because the map redraws its tiles at different moments.
+  draw(map, placed, { id: newId, part: 0 })
+  if (map.isMoving()) map.once('moveend', begin)
+  else begin()
 
   return () => {
+    map.off('moveend', begin)
     cancelAnimationFrame(frame)
-    source.setData({ type: 'FeatureCollection', features: [] })
+    draw(map, placed) // stopped early → draw everything at full size
   }
 }
