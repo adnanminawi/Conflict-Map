@@ -77,9 +77,8 @@ export default function WeaponsPanel({ weapons, placed, placing, onPlace, onCanc
             <>
               <p className="reach-hint">Choose a country to see its weapons and how far they reach.</p>
               {weapons.length === 0 && <p className="reach-hint">No weapons listed yet.</p>}
-              {/* Scrolls inside the box when there are many */}
-              <div className="reach-list reach-list-countries"></div>
-              <div className="reach-list">
+              {/* Shows 4, then scrolls */}
+              <div className="reach-list reach-list-countries">
                 {countriesOf(weapons).map((c) => (
                   <button key={c.code} type="button" className="reach-weapon" onClick={() => onSelectCountry(c.code)}>
                     <span className="reach-line">
@@ -119,7 +118,7 @@ export default function WeaponsPanel({ weapons, placed, placing, onPlace, onCanc
                 </div>
               )}
 
-              {/* Scrolls inside the box when there are many */}
+              {/* Shows 4, then scrolls */}
               <div className="reach-list">
                 {groupByOwner(weapons).map((group) => (
                   <div key={group.owner} className="reach-group">

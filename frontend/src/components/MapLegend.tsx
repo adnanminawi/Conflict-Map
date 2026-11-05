@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import airportIcon from '../assets/icons/airport.png'
 import militaryBaseIcon from '../assets/icons/military_base.png'
 import navalBaseIcon from '../assets/icons/naval_base.png'
 import fightingIcon from '../assets/icons/fighting.png'
 import explosionIcon from '../assets/icons/explosion.png'
+import { ALERT_COLORS, ALERT_MINUTES } from '../map/alertsLayer'
 import { ALL_VISIBLE, type Category, type LegendSide, type Visible } from '../map/filters'
 
 interface Props {
@@ -13,13 +14,20 @@ interface Props {
   sides: LegendSide[] // the selected country's sides (empty in "All")
   hiddenSides: number[]
   onToggleSide: (sideId: number) => void
+  autoFold: boolean // a country with weapons is open: fold the key so the weapons box gets the room
 }
 
 // The map key in the bottom-left corner. Each line explains a symbol,
 // and clicking the line shows or hides it on the map (a dimmed line = hidden).
-export default function MapLegend({ visible, onToggle, onShowAll, sides, hiddenSides, onToggleSide }: Props) {
+export default function MapLegend({ visible, onToggle, onShowAll, sides, hiddenSides, onToggleSide, autoFold }: Props) {
   // Open on computers, closed on phones (it would cover the map)
   const [open, setOpen] = useState(() => window.innerWidth > 600)
+
+  // Country with weapons (e.g. Iran) → fold the key. Back to "All" or a country without weapons → open it again (on computers).
+  // The visitor can still open it with its title.
+  useEffect(() => {
+    setOpen(!autoFold && window.innerWidth > 600)
+  }, [autoFold])
 
   // Something is hidden → offer "Show everything"
   const somethingHidden = hiddenSides.length > 0 || (Object.keys(ALL_VISIBLE) as Category[]).some((c) => !visible[c])
@@ -56,6 +64,12 @@ export default function MapLegend({ visible, onToggle, onShowAll, sides, hiddenS
 
       {open && (
         <>
+          <div className="key-group">
+            <div className="key-group-name">Sirens in Israel</div>
+            {row('rockets', <span className="key-swatch" style={{ background: ALERT_COLORS.rockets }} />, 'Rockets', `last ${ALERT_MINUTES} min`)}
+            {row('drones', <span className="key-swatch" style={{ background: ALERT_COLORS.drone }} />, 'Drones', `last ${ALERT_MINUTES} min`)}
+          </div>
+
           <div className="key-group">
             <div className="key-group-name">On the ground</div>
             {row('events', <span className="legend-pin" />, 'Confirmed events')}

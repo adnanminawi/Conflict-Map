@@ -1148,3 +1148,29 @@ textarea {
 .reach-list:empty {
   display: none;
 }
+
+
+/* Scrollbars inside the boxes on the map: thin and dark (the browser's default is a wide light bar) */
+.map-panel,
+.map-panel * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* Older Chrome / Safari use these instead */
+.map-panel::-webkit-scrollbar,
+.map-panel ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.map-panel::-webkit-scrollbar-thumb,
+.map-panel ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+
+.map-panel::-webkit-scrollbar-track,
+.map-panel ::-webkit-scrollbar-track {
+  background: transparent;
+}
