@@ -40,7 +40,7 @@ export default function AdminPage() {
     <div className="admin-page">
       <header className="topbar">
         <div className="brand">
-          <span className="live-dot" /> Conflict Map
+         Conflict Map
         </div>
 
         <nav className="tabs">

@@ -40,6 +40,7 @@ export default function MapPage() {
   const [alerts, setAlerts] = useState<AlertsResponse>({ alerts: [], areas: [] })
   const [status, setStatus] = useState<string | null>('Loading events…')
 
+
   // What the visitor chose (reset on every visit)
   const [country, setCountry] = useState(ALL)
   const [visible, setVisible] = useState<Visible>(ALL_VISIBLE)
@@ -172,7 +173,7 @@ export default function MapPage() {
           return
         }
         stop = showReach(map, reach)
-        const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 290 } : 30
+        const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 70 } : 30
         map.fitBounds(reachBounds(reach), { padding, duration: 800 })
       })
       .catch(() => !cancelled && setReachError('Could not draw the reach. Check your connection and try again.'))
@@ -244,7 +245,7 @@ export default function MapPage() {
       setPlaced((list) => [...list, { id, weapon, center }])
       setPlacing(null)
       // Show the whole reach: zoom so the circle fits (room for the legend on the left and this panel on the right)
-      const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 270 } : 30
+      const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 70 } : 30
       map!.fitBounds(rangeBounds(center, weapon.range_km), { padding, duration: 800 })
     }
     function onKey(e: KeyboardEvent) {
@@ -298,46 +299,41 @@ export default function MapPage() {
   }
 
   const countries = findCountries(locations, events, layers)
-  const eventCount = events.filter((e) => inCountry(e.country_code, country)).length
 
   return (
     <>
       <div ref={containerRef} className="map" />
 
-      {/* Top-left: name + how many events are shown */}
-      <div className="map-panel map-header">
-        <div className="brand">
-          <span className="live-dot" /> Conflict Map
-        </div>
-        <div className="map-subtitle">
-          {eventCount} confirmed {eventCount === 1 ? 'event' : 'events'} · last 7 days
-        </div>
-      </div>
+
 
       <CountryTabs countries={countries} selected={country} onSelect={selectCountry} />
 
-      <MapLegend
-        visible={visible}
-        onToggle={toggle}
-        onShowAll={showAll}
-        sides={sidesInCountry(layers, country)}
-        hiddenSides={hiddenSides}
-        onToggleSide={toggleSide}
-      />
-      <WeaponsPanel
-        weapons={weapons.filter((w) => inCountry(w.country_code, country))}
-        placed={placed}
-        placing={placing}
-        onPlace={setPlacing}
-        onCancelPlacing={() => setPlacing(null)}
-        onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
-        onClearAll={() => setPlaced([])}
-        reach={country === ALL ? null : { countryName: countryName(country), on: reachOn, loading: reachLoading, error: reachError }}
-        onToggleReach={() => setReachOn((on) => !on)}
-        onHoverWeapon={(km) => map && reachOn && highlightReach(map, km)}
-        showCountries={country === ALL}
-        onSelectCountry={selectCountry}
-      />
+
+      <div className="map-side">
+        {status && <div className="map-panel status">{status}</div>}
+        <WeaponsPanel
+          weapons={weapons.filter((w) => inCountry(w.country_code, country))}
+          placed={placed}
+          placing={placing}
+          onPlace={setPlacing}
+          onCancelPlacing={() => setPlacing(null)}
+          onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
+          onClearAll={() => setPlaced([])}
+          reach={country === ALL ? null : { countryName: countryName(country), on: reachOn, loading: reachLoading, error: reachError }}
+          onToggleReach={() => setReachOn((on) => !on)}
+          onHoverWeapon={(km) => map && reachOn && highlightReach(map, km)}
+          showCountries={country === ALL}
+          onSelectCountry={selectCountry}
+        />
+        <MapLegend
+          visible={visible}
+          onToggle={toggle}
+          onShowAll={showAll}
+          sides={sidesInCountry(layers, country)}
+          hiddenSides={hiddenSides}
+          onToggleSide={toggleSide}
+        />
+      </div>
 
       {status && <div className="map-panel status">{status}</div>}
 
