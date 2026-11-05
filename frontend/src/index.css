@@ -58,7 +58,8 @@ body,
 }
 
 .status {
-  top: 64px; /* under the country tabs */
+  top: 64px;
+  /* under the country tabs */
   left: 50%;
   transform: translateX(-50%);
   padding: 8px 14px;
@@ -68,7 +69,8 @@ body,
 /* On phones: put the status message under the header */
 @media (max-width: 600px) {
   .status {
-    top: 128px; /* under the header and the tabs */
+    top: 128px;
+    /* under the header and the tabs */
     left: 12px;
     transform: none;
     white-space: normal;
@@ -288,6 +290,7 @@ body,
   background: rgba(63, 178, 127, 0.12);
   border: 1px solid rgba(63, 178, 127, 0.35);
 }
+
 .tabs {
   display: flex;
   gap: 4px;
@@ -430,6 +433,7 @@ body,
     align-items: flex-start;
   }
 }
+
 /* Map to pick a location (Add event form) */
 .picker {
   height: 260px;
@@ -472,6 +476,7 @@ body,
 .row .btn {
   flex: 1;
 }
+
 /* Two cards on top of each other (Frontlines tab) */
 .stack {
   width: 100%;
@@ -484,10 +489,12 @@ body,
 .card input[type='date'] {
   color-scheme: dark;
 }
+
 /* ---------- Map editor (admins only) ---------- */
 .editor {
   top: 12px;
-  right: 52px; /* left of the zoom buttons */
+  right: 52px;
+  /* left of the zoom buttons */
   width: 270px;
   max-height: calc(100% - 24px);
   overflow-y: auto;
@@ -587,6 +594,7 @@ body,
 .editor-actions .btn {
   flex: 1;
 }
+
 /* A narrow field in a row (e.g. a 2-letter country code) */
 .row label.short {
   flex: 0 0 110px;
@@ -600,8 +608,10 @@ body,
   display: flex;
   gap: 4px;
   padding: 5px;
-  max-width: calc(100% - 520px); /* leave room for the header (left) and the zoom buttons (right) */
-  overflow-x: auto; /* many countries → scroll sideways */
+  max-width: calc(100% - 520px);
+  /* leave room for the header (left) and the zoom buttons (right) */
+  overflow-x: auto;
+  /* many countries → scroll sideways */
 }
 
 .country-tab {
@@ -946,16 +956,18 @@ body,
 .weapons-panel {
   right: 12px;
   width: 248px;
-  overflow: hidden; /* the list inside scrolls, not the whole box */
+  overflow: hidden;
+  /* the list inside scrolls, not the whole box */
 }
 
 /* The weapons (or countries) list: takes the space left in the box and scrolls when there are many */
 .reach-list {
   flex: 1 1 auto;
-  min-height: 60px;
+  min-height: 45px;
   max-height: 231px;
   overflow-y: auto;
-  overscroll-behavior: contain; /* scrolling the list doesn't zoom or scroll the page behind */
+  overscroll-behavior: contain;
+  /* scrolling the list doesn't zoom or scroll the page behind */
 }
 
 .reach-list-countries {
@@ -1013,6 +1025,7 @@ body,
 
 /* Phones: the two panels share the bottom of the screen */
 @media (max-width: 600px) {
+
   .map-legend,
   .weapons-panel {
     width: calc(50% - 18px);
@@ -1025,6 +1038,7 @@ body,
     transition: none;
   }
 }
+
 .reach-border {
   padding: 0 14px 10px;
 }
@@ -1050,7 +1064,7 @@ body,
 
 .reach-toggle.on {
   color: #0e1217;
-  background: #ffd666;  
+  background: #ffd666;
   border-color: #ffd666;
 }
 
@@ -1070,4 +1084,8 @@ body,
 
 .reach-error {
   color: #ff9b9e;
+}
+
+.reach-list:empty {
+  display: none;
 }
