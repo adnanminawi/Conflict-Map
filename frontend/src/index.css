@@ -47,27 +47,7 @@ body,
   color: #8b95a3;
 }
 
-.map-legend {
-  bottom: 28px;
-  left: 12px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.legend-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.legend-row img {
-  width: 18px;
-  height: 18px;
-}
-
-/* Small red teardrop, like the event markers */
+/* Small red teardrop, like the event markers (map key) */
 .legend-pin {
   width: 12px;
   height: 12px;
@@ -78,7 +58,7 @@ body,
 }
 
 .status {
-  top: 12px;
+  top: 64px; /* under the country tabs */
   left: 50%;
   transform: translateX(-50%);
   padding: 8px 14px;
@@ -88,7 +68,7 @@ body,
 /* On phones: put the status message under the header */
 @media (max-width: 600px) {
   .status {
-    top: 76px;
+    top: 128px; /* under the header and the tabs */
     left: 12px;
     transform: none;
     white-space: normal;
@@ -450,6 +430,20 @@ body,
     align-items: flex-start;
   }
 }
+/* Map to pick a location (Add event form) */
+.picker {
+  height: 260px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.hint {
+  margin: -8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 /* ---------- KML import ---------- */
 .card input[type='file'] {
   padding: 8px;
@@ -478,16 +472,6 @@ body,
 .row .btn {
   flex: 1;
 }
-/* Small half-transparent square in the legend, like the areas on the map */
-.legend-area {
-  width: 14px;
-  height: 12px;
-  margin: 0 2px;
-  background: rgba(229, 72, 77, 0.35);
-  border: 2px solid #e5484d;
-  border-radius: 2px;
-}
-
 /* Two cards on top of each other (Frontlines tab) */
 .stack {
   width: 100%;
@@ -603,23 +587,6 @@ body,
 .editor-actions .btn {
   flex: 1;
 }
-/* ---------- Siren alerts (legend) ---------- */
-.legend-alert {
-  width: 14px;
-  height: 12px;
-  margin: 0 2px;
-  border-radius: 2px;
-  opacity: 0.8;
-}
-
-.legend-note {
-  margin-top: 4px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 11px;
-  color: #8b95a3;
-  max-width: 220px;
-}
 /* A narrow field in a row (e.g. a 2-letter country code) */
 .row label.short {
   flex: 0 0 110px;
@@ -670,58 +637,6 @@ body,
   }
 }
 
-/* ---------- Legend = show / hide switches ---------- */
-.legend-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 0;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: inherit;
-  color: #e6e9ee;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.map-legend label.legend-row {
-  cursor: pointer;
-  user-select: none;
-}
-
-.legend-row input[type='checkbox'] {
-  margin: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-/* A switched-off line is greyed out */
-.legend-row.off,
-.legend-sub.off {
-  opacity: 0.4;
-}
-
-/* The icons that belong to "Frontlines & fighting" */
-
-.legend-show-all {
-  align-self: flex-start;
-  margin-top: 2px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-family: inherit;
-  color: #c3cad4;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.legend-show-all:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-}
 /* ---------- Sides ---------- */
 /* A color dot (legend, admin list) */
 .side-dot {
@@ -731,12 +646,6 @@ body,
   border-radius: 50%;
   flex: none;
   vertical-align: middle;
-}
-
-/* A side under "Frontlines" in the legend */
-.legend-side {
-  padding-left: 22px;
-  font-size: 12px;
 }
 
 /* Country + side on one line in the upload form; the "new side" box takes a full line */
@@ -773,119 +682,392 @@ body,
 .new-side .error {
   flex-basis: 100%;
 }
-/* ---------- Weapon ranges panel (bottom right) ---------- */
+
+/* ---------- Map key (bottom left) and weapon reach (bottom right) ----------
+   Both panels share the same pieces: a title that folds the panel, named groups, and rows. */
+.map-legend,
 .weapons-panel {
   bottom: 28px;
-  right: 12px;
-  width: 240px;
-  max-height: 45vh;
-  padding: 10px 12px;
+  width: 232px;
+  max-height: calc(100% - 200px);
+  padding: 4px 0 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
   overflow-y: auto;
   box-sizing: border-box;
 }
 
-.weapons-hint {
-  margin: 0;
-  font-size: 12px;
-  color: #8b95a3;
+.map-legend {
+  left: 12px;
+  gap: 0;
 }
 
-.weapons-placing {
+
+
+/* Title: folds / unfolds the panel */
+.key-title {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-  color: #e6e9ee;
-}
-
-.weapons-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.weapon-choice {
-  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 6px;
-  font-size: 12px;
+  padding: 8px 14px;
+  font: 600 13px/1.2 inherit;
   font-family: inherit;
-  color: #c3cad4;
-  text-align: left;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.weapon-choice:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.weapon-choice.active {
-  color: #ffffff;
-  border-color: var(--accent);
-}
-
-.weapon-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.weapon-range {
-  color: #8b95a3;
-  white-space: nowrap;
-}
-
-.weapons-placed-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 4px;
-  padding-top: 6px;
-  font-size: 12px;
-  font-weight: 700;
   color: #e6e9ee;
-  border-top: 1px solid #2a313b;
-}
-
-.weapons-placed-title .legend-show-all {
-  margin: 0;
-}
-
-.weapon-placed {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #c3cad4;
-}
-
-.weapon-remove {
-  padding: 0 6px;
-  font-size: 16px;
-  line-height: 1;
-  color: #8b95a3;
+  text-align: left;
   background: none;
   border: none;
   cursor: pointer;
 }
 
-.weapon-remove:hover {
+.key-chevron {
+  font-size: 16px;
+  color: #8b95a3;
+}
+
+/* A named group of rows ("On the ground", "Houthis, Yemen"…) */
+.key-group,
+.reach-group {
+  padding: 6px 0 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.key-group-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 14px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8b95a3;
+}
+
+/* One line of the key: the whole line is the switch */
+.key-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 14px;
+  font: inherit;
+  font-size: 13px;
+  color: #e6e9ee;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.key-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.key-row.off {
+  opacity: 0.38;
+}
+
+.key-row:disabled {
+  cursor: default;
+}
+
+.key-row:focus-visible,
+.key-title:focus-visible,
+.key-reset:focus-visible,
+.reach-weapon:focus-visible,
+.reach-remove:focus-visible {
+  outline: 2px solid #e6e9ee;
+  outline-offset: -2px;
+}
+
+/* The symbol column: every symbol centred in the same 20px box, so the labels line up */
+.key-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  flex: none;
+}
+
+.key-symbol img {
+  width: 18px;
+  height: 18px;
+}
+
+.key-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.key-detail {
+  font-size: 11px;
+  color: #8b95a3;
+}
+
+/* Sides sit under "Frontlines", lined up with its label */
+.key-side {
+  padding-left: 44px;
+  font-size: 12px;
+}
+
+/* Siren swatch and frontline area swatch */
+.key-swatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  opacity: 0.85;
+}
+
+.key-area {
+  width: 14px;
+  height: 10px;
+  background: rgba(229, 72, 77, 0.3);
+  border: 1.5px solid #e5484d;
+  border-radius: 2px;
+}
+
+/* Small text button: "Show everything", "Remove all", "Cancel" */
+.key-reset {
+  align-self: flex-start;
+  margin: 6px 14px 0;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: #c3cad4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.key-reset:hover {
   color: #ffffff;
 }
 
-/* Phones: the legend is on the left, so the weapons panel gets the right half */
+.key-note {
+  margin: 8px 14px 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  line-height: 1.45;
+  color: #8b95a3;
+}
+
+/* ---------- Weapon reach ---------- */
+.reach-hint {
+  margin: 0;
+  padding: 0 14px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #8b95a3;
+}
+
+/* "Click the map where … would launch from" */
+.reach-placing {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 10px 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #e6e9ee;
+  background: rgba(255, 255, 255, 0.06);
+  border-left: 2px solid #e6e9ee;
+}
+
+.reach-placing .key-reset {
+  margin: 4px 0 0;
+}
+
+/* One weapon: name + km, a bar comparing its range with the others, and its type */
+.reach-weapon {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 6px 14px;
+  font: inherit;
+  color: #e6e9ee;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+}
+
+.reach-weapon:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.reach-weapon.active {
+  background: rgba(255, 255, 255, 0.07);
+  border-left-color: #e6e9ee;
+}
+
+.reach-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.reach-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reach-km {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: #c3cad4;
+}
+
+.reach-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.reach-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.reach-type {
+  font-size: 11px;
+  color: #8b95a3;
+}
+
+/* What is on the map now */
+.weapons-panel {
+  right: 12px;
+  width: 248px;
+  overflow: hidden; /* the list inside scrolls, not the whole box */
+}
+
+/* The weapons (or countries) list: takes the space left in the box and scrolls when there are many */
+.reach-list {
+  flex: 1 1 auto;
+  min-height: 60px;
+  max-height: 231px;
+  overflow-y: auto;
+  overscroll-behavior: contain; /* scrolling the list doesn't zoom or scroll the page behind */
+}
+
+.reach-list-countries {
+  max-height: 180px;
+}
+
+/* The placed weapons can also get long: they scroll on their own */
+.reach-placed {
+  flex-shrink: 0;
+  max-height: 140px;
+  overflow-y: auto;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.reach-placed-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-right: 14px;
+}
+
+.reach-placed-head .key-reset {
+  margin: 0;
+}
+
+.reach-placed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px 3px 14px;
+  font-size: 12px;
+}
+
+.reach-placed-row .reach-name {
+  flex: 1;
+}
+
+.reach-remove {
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  line-height: 1;
+  color: #8b95a3;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.reach-remove:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Phones: the two panels share the bottom of the screen */
 @media (max-width: 600px) {
+  .map-legend,
   .weapons-panel {
     width: calc(50% - 18px);
+    max-height: 55%;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .key-row {
+    transition: none;
+  }
+}
+.reach-border {
+  padding: 0 14px 10px;
+}
+
+.reach-toggle {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6e9ee;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.reach-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reach-toggle.on {
+  color: #0e1217;
+  background: #ffd666;  
+  border-color: #ffd666;
+}
+
+.reach-toggle:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.reach-toggle:focus-visible {
+  outline: 2px solid #e6e9ee;
+  outline-offset: 2px;
+}
+
+.reach-border .reach-hint {
+  padding: 0;
+}
+
+.reach-error {
+  color: #ff9b9e;
 }
