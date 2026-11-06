@@ -94,3 +94,6 @@ export async function updateWeapon(id: number, weapon: WeaponInput): Promise<Wea
 export async function deleteWeapon(id: number): Promise<void> {
   await api.delete(`/weapons/${id}`)
 }
+export async function deleteLocation(id:number): Promise<void> {
+  await api.delete(`/locations/${id}`)  
+}

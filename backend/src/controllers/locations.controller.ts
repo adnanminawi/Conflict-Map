@@ -45,3 +45,19 @@ export async function importKml(req: Request, res: Response, next: NextFunction)
     next(err);
   }
 }
+
+export async function deleteLocation(req: Request, res: Response, next: NextFunction) {
+  try {
+    await locationsService.deleteLocation(readId(req.params.id));
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// The :id in the URL must be a positive whole number
+function readId(value: string): number {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id < 1) throw AppError.badRequest('Invalid location id');
+  return id;
+}

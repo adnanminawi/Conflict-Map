@@ -3,7 +3,7 @@ import LoginForm from '../components/LoginForm'
 import EventForm from '../components/EventForm'
 import EventList from '../components/EventList'
 import { TOKEN_KEY } from '../api/client'
-import KmlImport from '../components/KmlImport'
+import LocationsAdmin from '../components/Locationsadmin'
 import LayerImport from '../components/LayerImport'
 import WeaponsAdmin from '../components/WeaponsAdmin'
 
@@ -40,9 +40,9 @@ export default function AdminPage() {
     <div className="admin-page">
       <header className="topbar">
         <div className="brand">
-         Conflict Map
+          Conflict Map
         </div>
-
+ 
         <nav className="tabs">
           <button className={tab === 'list' ? 'tab active' : 'tab'} onClick={() => setTab('list')}>
             Events
@@ -60,7 +60,7 @@ export default function AdminPage() {
             Weapons
           </button>
         </nav>
-
+ 
         <div className="topbar-links">
           <a href="/">View map</a>
           <button className="btn btn-ghost" onClick={handleLogout}>
@@ -68,11 +68,11 @@ export default function AdminPage() {
           </button>
         </div>
       </header>
-
+ 
       <main className="admin-content">
         {tab === 'list' && <EventList onLoggedOut={handleLogout} />}
         {tab === 'add' && <EventForm onLoggedOut={handleLogout} />}
-        {tab === 'bases' && <KmlImport onLoggedOut={handleLogout} />}
+        {tab === 'bases' && <LocationsAdmin onLoggedOut={handleLogout} />}
         {tab === 'frontlines' && <LayerImport onLoggedOut={handleLogout} />}
         {tab === 'weapons' && <WeaponsAdmin onLoggedOut={handleLogout} />}
       </main>

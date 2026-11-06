@@ -3,13 +3,15 @@ import { fetchLocationTypes, importKml } from '../api/admin'
 import { getErrorMessage, isUnauthorized } from '../api/client'
 import type { ImportSummary, LocationType } from '../types'
 import CountrySelect from './CountrySelect'
+
 interface Props {
   onLoggedOut: () => void
+  onImported: () => void // tells the Bases tab to reload its list
 }
 
 // Upload a KML/KMZ file of bases / airports.
 // Step 1: Preview (nothing saved). Step 2: Import.
-export default function KmlImport({ onLoggedOut }: Props) {
+export default function KmlImport({ onLoggedOut, onImported }: Props) {
   const [types, setTypes] = useState<LocationType[]>([])
 
   const [file, setFile] = useState<File | null>(null)
@@ -43,6 +45,7 @@ export default function KmlImport({ onLoggedOut }: Props) {
       if (!dryRun) {
         setFile(null)
         setFileInputKey((k) => k + 1)
+        onImported()
       }
     } catch (err) {
       if (isUnauthorized(err)) onLoggedOut()
@@ -57,7 +60,7 @@ export default function KmlImport({ onLoggedOut }: Props) {
 
   return (
     <div className="card">
-      <h2>Import KML</h2>
+      <h2>Import bases &amp; airports</h2>
       <p className="muted">Add bases or airports from a Google Earth file (.kml or .kmz).</p>
 
       <label>
@@ -91,7 +94,7 @@ export default function KmlImport({ onLoggedOut }: Props) {
             ))}
           </select>
         </label>
-         <label>
+        <label>
           Country
           <CountrySelect
             value={country}
