@@ -76,3 +76,8 @@ export async function importKml(
 
   return summary;
 }
+
+export async function deleteLocation(id: number) {
+  const deleted = await locationsRepository.deleteById(id);
+  if (deleted === 0) throw AppError.notFound('Location not found');
+}

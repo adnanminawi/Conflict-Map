@@ -1,4 +1,4 @@
-import type { RowDataPacket } from 'mysql2';
+import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { db } from '../config/db';
 import type { MapLocation } from '../types/locations.types';
 
@@ -59,4 +59,9 @@ export async function findTypes(): Promise<{ id: number; code: string; name: str
     'SELECT id, code, name FROM location_types ORDER BY name',
   );
   return rows;
+}
+export async function deleteById(id: number): Promise<number> {
+  const [result] = await db.execute<ResultSetHeader>('DELETE FROM locations WHERE id = ?',
+    [id]);
+  return result.affectedRows;
 }
