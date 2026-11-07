@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import airportIcon from '../assets/icons/airport.png'
 import militaryBaseIcon from '../assets/icons/military_base.png'
 import navalBaseIcon from '../assets/icons/naval_base.png'
+import airDefenceIcon from '../assets/icons/air_defence.png'
+import radarIcon from '../assets/icons/radar.png'
 import fightingIcon from '../assets/icons/fighting.png'
 import explosionIcon from '../assets/icons/explosion.png'
 import { ALERT_COLORS, ALERT_MINUTES } from '../map/alertsLayer'
@@ -102,6 +104,8 @@ export default function MapLegend({ visible, onToggle, onShowAll, sides, hiddenS
             {row('airport', <img src={airportIcon} alt="" />, 'Airports')}
             {row('military_base', <img src={militaryBaseIcon} alt="" />, 'Military bases')}
             {row('naval_base', <img src={navalBaseIcon} alt="" />, 'Naval bases')}
+            {row('air_defence', <img src={airDefenceIcon} alt="" />, 'Air defence')}
+            {row('radar', <img src={radarIcon} alt="" />, 'Radars')}
           </div>
 
           {somethingHidden && (

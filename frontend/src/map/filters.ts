@@ -4,10 +4,54 @@ import type { AlertType, MapEvent, MapLayer, MapLocation } from '../types'
 
 // ---------- Show / hide ----------
 
-export type Category = 'rockets' | 'drones' | 'events' | 'frontlines' | 'airport' | 'military_base' | 'naval_base' | 'fighting' | 'explosion'
+export type Category =
+  | 'rockets'
+  | 'drones'
+  | 'events'
+  | 'frontlines'
+  | 'fighting'
+  | 'explosion'
+  | 'airport'
+  | 'military_base'
+  | 'naval_base'
+  | 'air_defence'
+  | 'radar'
 
 export type Visible = Record<Category, boolean>
 
+// Everything is shown when the page opens
+export const ALL_VISIBLE: Visible = {
+  rockets: true,
+  drones: true,
+  events: true,
+  frontlines: true,
+  fighting: true,
+  explosion: true,
+  airport: true,
+  military_base: true,
+  naval_base: true,
+  air_defence: true,
+  radar: true,
+}
+
+// Which siren types each switch controls ('other' goes with rockets)
+export function visibleAlertTypes(visible: Visible): AlertType[] {
+  const types: AlertType[] = []
+  if (visible.rockets) types.push('rockets', 'other')
+  if (visible.drones) types.push('drone')
+  return types
+}
+
+// True if this shape's switch is on.
+// Fighting / explosion icons have their own switch. Everything else (areas, lines, arrows, text) is "frontlines".
+export function keepShape(feature: Feature, visible: Visible): boolean {
+  const icon = feature.properties?.icon
+  if (icon === 'fighting') return visible.fighting
+  if (icon === 'explosion') return visible.explosion
+  return visible.frontlines
+}
+
+// ---------- Sides ----------
 
 export interface LegendSide {
   id: number
@@ -23,33 +67,6 @@ export function sidesInCountry(layers: MapLayer[], country: string): LegendSide[
     if (l.country_code === country) found.set(l.side_id, { id: l.side_id, name: l.side_name, color: l.side_color })
   }
   return [...found.values()].sort((a, b) => a.name.localeCompare(b.name))
-}
-export function keepShape(feature: Feature, visible: Visible): boolean {
-  const icon = feature.properties?.icon
-  if (icon === 'fighting') return visible.fighting
-  if (icon === 'explosion') return visible.explosion
-  return visible.frontlines
-}
-
-// Everything is shown when the page opens
-export const ALL_VISIBLE: Visible = {
-  rockets: true,
-  drones: true,
-  events: true,
-  frontlines: true,
-  airport: true,
-  military_base: true,
-  naval_base: true,
-  fighting: true,
-  explosion : true,
-}
-
-// Which siren types each switch controls ('other' goes with rockets)
-export function visibleAlertTypes(visible: Visible): AlertType[] {
-  const types: AlertType[] = []
-  if (visible.rockets) types.push('rockets', 'other')
-  if (visible.drones) types.push('drone')
-  return types
 }
 
 // ---------- Countries ----------
