@@ -6,7 +6,9 @@ import { arePopupsEnabled } from './shapesLayer'
 
 // Color of each kind of alert
 export const ALERT_COLORS = { rockets: '#ff2d2d', drone: '#ff8c00', other: '#ffd400' }
+// How long an alert stays on the map, in minutes
 export const ALERT_MINUTES = 5
+
 const color = ['match', ['get', 'type'], 'rockets', ALERT_COLORS.rockets, 'drone', ALERT_COLORS.drone, ALERT_COLORS.other]
 
 // Runs once, after the map has loaded (and after setupShapeLayers, so alerts are drawn on top)
@@ -60,6 +62,8 @@ export function setupAlertLayers(map: maplibregl.Map) {
     if (e.originalEvent.target !== map.getCanvas()) return
     // A placed weapon's launch point has its own popup (weaponsLayer.ts)
     if (map.getLayer('weapon-center') && map.queryRenderedFeatures(e.point, { layers: ['weapon-center'] }).length > 0) return
+    // Bases and their clusters have their own click (locationsLayer.ts)
+    if (map.getLayer('locations-icons') && map.queryRenderedFeatures(e.point, { layers: ['locations-clusters', 'locations-icons'] }).length > 0) return
     const area = map.queryRenderedFeatures(e.point, { layers: ['alerts-fill', 'alerts-dots'] })[0]
     if (!area) return
 

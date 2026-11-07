@@ -17,6 +17,7 @@ export function enableShapePopups(enabled: boolean) {
 export function arePopupsEnabled() {
   return popupsEnabled
 }
+
 // Direction of the last piece of a line, in degrees clockwise from north (for the arrowhead)
 function endBearing(line: Position[]): number {
   const [lng1, lat1] = line[line.length - 2]
@@ -32,8 +33,8 @@ function arrowheads(features: Feature[]): Feature[] {
     if (!f.properties?.arrow) continue
     const lines =
       f.geometry.type === 'LineString' ? [f.geometry.coordinates]
-        : f.geometry.type === 'MultiLineString' ? f.geometry.coordinates
-          : []
+      : f.geometry.type === 'MultiLineString' ? f.geometry.coordinates
+      : []
     for (const line of lines) {
       if (line.length < 2) continue
       result.push({
@@ -178,7 +179,7 @@ export async function setupShapeLayers(map: maplibregl.Map) {
     paint: textStyle,
   })
 
-  // 8. Click a shape → popup with its name and description/*  */
+  // 8. Click a shape → popup with its name and description
   map.on('click', (e) => {
     if (!popupsEnabled) return
     // Clicks on base / event icons are handled by their own popups
@@ -193,6 +194,9 @@ export async function setupShapeLayers(map: maplibregl.Map) {
     if (map.getLayer('alerts-fill') && map.queryRenderedFeatures(box, { layers: ['alerts-fill', 'alerts-dots'] }).length > 0) return
     // A placed weapon's launch point has its own popup (weaponsLayer.ts)
     if (map.getLayer('weapon-center') && map.queryRenderedFeatures(box, { layers: ['weapon-center'] }).length > 0) return
+    // Bases and their clusters have their own click (locationsLayer.ts)
+    if (map.getLayer('locations-icons') && map.queryRenderedFeatures(box, { layers: ['locations-clusters', 'locations-icons'] }).length > 0) return
+
     const shape = map.queryRenderedFeatures(box, { layers: CLICKABLE })[0]
     if (!shape) return
 

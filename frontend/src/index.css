@@ -1300,3 +1300,37 @@ textarea {
     z-index: 2;
   }
 }
+/* ---------- Map tools ---------- */
+/* The ruler button: same look as the zoom buttons; dark when measuring */
+.maplibregl-ctrl-group .measure-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+}
+
+.maplibregl-ctrl-group .measure-button.active {
+  color: #ffffff;
+  background: #0e1217;
+}
+
+/* How to use the ruler, bottom centre of the map */
+.measure-hint {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 8px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .measure-hint {
+    bottom: 90px; /* above the map key */
+    white-space: normal;
+    width: calc(100% - 48px);
+    text-align: center;
+  }
+}
