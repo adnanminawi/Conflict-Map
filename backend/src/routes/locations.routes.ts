@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { deleteLocation, getLocations, getLocationTypes, importKml } from '../controllers/locations.controller';
+import { deleteLocation, deleteManyLocations, getLocations, getLocationTypes, importKml } from '../controllers/locations.controller';
 import { requireAdmin } from '../utils/requireAdmin';
 import { upload } from '../utils/upload';
 
@@ -11,4 +11,5 @@ locationsRoutes.get('/types', getLocationTypes);
 
 // Admin only. requireAdmin runs first, so files from strangers are never read.
 locationsRoutes.post('/import', requireAdmin, upload.single('file'), importKml);
+locationsRoutes.post('/delete-many', requireAdmin, deleteManyLocations); // POST, because a DELETE with a body is often dropped
 locationsRoutes.delete('/:id', requireAdmin, deleteLocation);
