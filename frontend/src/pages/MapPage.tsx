@@ -6,11 +6,11 @@ import { fetchLocations } from '../api/locations'
 import { fetchLayers } from '../api/layers'
 import { fetchAlerts } from '../api/alerts'
 import { TOKEN_KEY } from '../api/client'
-import { addLocationMarkers } from '../map/locationsLayer'
+import { setupLocationLayers, showLocations } from '../map/locationsLayer'
+import { setupEventLayers, showEvents } from '../map/Eventslayer'
 import { arePopupsEnabled, enableShapePopups, setupShapeLayers, showShapes } from '../map/shapesLayer'
 import { setupAlertLayers, showAlerts, ALERT_MINUTES } from '../map/alertsLayer'
 import { computeReach, highlightReach, reachBounds, setupReachLayers, showReach } from '../map/reachLayer'
-import { buildPopup } from '../map/popup'
 import {
   ALL,
   ALL_VISIBLE,
@@ -26,6 +26,7 @@ import {
   type Visible,
 } from '../map/filters'
 import MapLegend from '../components/MapLegend'
+import { MeasureControl } from '../map/Measuretool'
 import CountryTabs from '../components/CountryTabs'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config'
@@ -56,6 +57,9 @@ export default function MapPage() {
   // What the visitor chose (reset on every visit)
   const [country, setCountry] = useState(ALL)
   const [visible, setVisible] = useState<Visible>(ALL_VISIBLE)
+
+  // The ruler button (measure distance). Kept so placing a weapon can close it.
+  const measureRef = useRef<MeasureControl | null>(null)
   const [hiddenSides, setHiddenSides] = useState<number[]>([]) // side ids switched off (reset when the country changes)
   const [placed, setPlaced] = useState<PlacedWeapon[]>([]) // weapons the visitor put on the map (gone after a refresh)
   const [placing, setPlacing] = useState<Weapon | null>(null) // chosen in the panel, waiting for a click on the map
@@ -97,6 +101,10 @@ export default function MapPage() {
       zoom: START_ZOOM,
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
+    // Under the zoom buttons. Starting to measure cancels placing a weapon (both use map clicks).
+    const measure = new MeasureControl(() => setPlacing(null))
+    map.addControl(measure, 'top-right')
+    measureRef.current = measure
     mapRef.current = map
 
     // Frontlines and alerts need the map style to be ready, so wait for 'load'
@@ -105,6 +113,8 @@ export default function MapPage() {
       setupAlertLayers(map) // after the shapes, so alerts are drawn on top
       setupReachLayers(map)
       setupWeaponLayers(map)
+      await setupLocationLayers(map) // bases and events last, so they're drawn on top
+      setupEventLayers(map) // events above bases
       if (mapRef.current === map) setMap(map)
     })
 
@@ -167,8 +177,7 @@ export default function MapPage() {
     const shown = locations.filter(
       (l) => visible[l.type_code as Category] !== false && inCountry(l.country_code, country),
     )
-    const markers = addLocationMarkers(map, shown)
-    return () => markers.forEach((m) => m.remove())
+    showLocations(map, shown) // the map groups them into clusters by itself
   }, [map, locations, visible, country])
 
   // Reach from the border of the selected country: one ring per distance its weapons reach
@@ -203,18 +212,10 @@ export default function MapPage() {
     }
   }, [map, reachOn, country, weapons])
 
-  // Events
+  // Events: the selected country only, or none when switched off. The map groups them into clusters by itself.
   useEffect(() => {
-    if (!map || !visible.events) return
-    const markers = events
-      .filter((e) => inCountry(e.country_code, country))
-      .map((event) =>
-        new maplibregl.Marker({ color: event.color ?? '#E53935' })
-          .setLngLat([event.lng, event.lat])
-          .setPopup(new maplibregl.Popup({ offset: 25 }).setDOMContent(eventPopup(event)))
-          .addTo(map),
-      )
-    return () => markers.forEach((m) => m.remove())
+    if (!map) return
+    showEvents(map, visible.events ? events.filter((e) => inCountry(e.country_code, country)) : [])
   }, [map, events, visible.events, country])
 
   // Frontlines: right country, side switched on, not the layer being edited,
@@ -250,6 +251,7 @@ export default function MapPage() {
   // Placing a weapon: the next click on the map puts it there. Esc cancels.
   useEffect(() => {
     if (!map || !placing) return
+    measureRef.current?.stop() // both use map clicks: placing wins
     const popupsBefore = arePopupsEnabled()
     enableShapePopups(false) // this click is for placing, not for opening popups
     map.getCanvas().style.cursor = 'crosshair'
@@ -360,12 +362,4 @@ export default function MapPage() {
       </div>
     </>
   )
-}
-
-function eventPopup(event: MapEvent): HTMLElement {
-  return buildPopup(event.title, event.type_name, [
-    new Date(event.occurred_at).toLocaleString(),
-    event.location_name ? `Target: ${event.location_name}` : null,
-    event.description,
-  ])
 }
