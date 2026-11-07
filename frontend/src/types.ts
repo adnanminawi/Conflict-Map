@@ -72,6 +72,8 @@ export interface ImportSummary {
   notPoints: number
   invalid: number
   autoNamed: number
+  byType: Record<string, number> // saved per type name, e.g. { "Air defence": 103, "Radar": 17 }
+  guessed: number // got their type from their name / folder; the rest got the chosen type
 }
 
 export interface KmlImportInput {

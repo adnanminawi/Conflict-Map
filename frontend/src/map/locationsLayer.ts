@@ -1,3 +1,6 @@
+// Bases, airports and naval bases, drawn by the map itself (not as HTML images), with clustering:
+// zoomed out, nearby ones merge into a circle with a number. Click it to zoom in; zoomed in, the icons appear.
+// Drawn on the map's canvas, so thousands of them stay smooth.
 import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
 import type { MapLocation } from '../types'
@@ -6,12 +9,16 @@ import { arePopupsEnabled } from './shapesLayer'
 import airportIcon from '../assets/icons/airport.png'
 import militaryBaseIcon from '../assets/icons/military_base.png'
 import navalBaseIcon from '../assets/icons/naval_base.png'
+import airDefenceIcon from '../assets/icons/air_defence.png'
+import radarIcon from '../assets/icons/radar.png'
 
 // Which picture to use for each location type (the map knows them by these names)
 const ICONS: Record<string, string> = {
   airport: airportIcon,
   military_base: militaryBaseIcon,
   naval_base: navalBaseIcon,
+  air_defence: airDefenceIcon,
+  radar: radarIcon,
 }
 
 // Clickable layers. shapesLayer.ts and alertsLayer.ts skip clicks on these, so a click on a base doesn't also open a frontline's popup.

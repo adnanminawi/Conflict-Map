@@ -61,7 +61,10 @@ export default function KmlImport({ onLoggedOut, onImported }: Props) {
   return (
     <div className="card">
       <h2>Import bases &amp; airports</h2>
-      <p className="muted">Add bases or airports from a Google Earth file (.kml or .kmz).</p>
+      <p className="muted">
+        Add bases, airports or air defence from a Google Earth file (.kml or .kmz). Each pin's type is read from its name or its
+        folder (e.g. "Iron Dome", "EL/M-2084", "Air base"). Pins with no clear type get the type you choose below.
+      </p>
 
       <label>
         File
@@ -78,7 +81,7 @@ export default function KmlImport({ onLoggedOut, onImported }: Props) {
 
       <div className="row">
         <label>
-          Type (all pins in the file)
+          Type for unclear pins
           <select
             value={type}
             onChange={(e) => {
@@ -116,9 +119,18 @@ export default function KmlImport({ onLoggedOut, onImported }: Props) {
             <li>
               {summary.dryRun ? 'Will be saved' : 'Saved'}: {summary.saved}
             </li>
+            {/* What each pin became, e.g. "Air defence: 105" */}
+            {Object.entries(summary.byType)
+              .sort((a, b) => b[1] - a[1])
+              .map(([name, count]) => (
+                <li key={name} className="import-type">
+                  {name}: {count}
+                </li>
+              ))}
+            {summary.guessed > 0 && <li>Type read from the name or folder: {summary.guessed}</li>}
             <li>Already on the map (skipped): {summary.duplicates}</li>
             {summary.notPoints > 0 && <li>Lines / shapes (skipped): {summary.notPoints}</li>}
-            {summary.invalid > 0 && <li>Bad coordinates (skipped): {summary.invalid}</li>}
+            {summary.invalid > 0 && <li>Bad coordinates or at 0,0 (skipped): {summary.invalid}</li>}
             {summary.autoNamed > 0 && <li>No name in the file, auto-named: {summary.autoNamed}</li>}
           </ul>
         </div>
