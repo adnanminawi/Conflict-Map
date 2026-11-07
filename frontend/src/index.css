@@ -1334,3 +1334,35 @@ textarea {
     text-align: center;
   }
 }
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card label.bulk-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.card input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: #e6e9ee;
+  cursor: pointer;
+}
+
+.event-item .row-check + .event-info {
+  flex: 1; /* the name takes the space, the Delete button stays on the right */
+  min-width: 0;
+}
