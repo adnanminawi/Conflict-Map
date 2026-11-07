@@ -109,3 +109,7 @@ export async function updateNewsStatus(id: number, status: NewsStatus): Promise<
 export async function deleteNews(id: number): Promise<void> {
   await api.delete(`/news/${id}`)
 }
+export async function deleteLocations(ids: number[]): Promise<number> {
+  const { data } = await api.post<{ deleted: number }>('/locations/delete-many', { ids })
+  return data.deleted
+}
