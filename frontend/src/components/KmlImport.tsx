@@ -120,7 +120,7 @@ export default function KmlImport({ onLoggedOut, onImported }: Props) {
               {summary.dryRun ? 'Will be saved' : 'Saved'}: {summary.saved}
             </li>
             {/* What each pin became, e.g. "Air defence: 105" */}
-            {Object.entries(summary.byType)
+            {Object.entries(summary.byType ?? {})
               .sort((a, b) => b[1] - a[1])
               .map(([name, count]) => (
                 <li key={name} className="import-type">
