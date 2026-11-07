@@ -2,6 +2,7 @@ import 'dotenv/config'; // must be the first import: loads .env before anything 
 import { app } from './app';
 import { db, checkDbConnection } from './config/db';
 import { startTelegramAlerts } from './listeners/telegramAlerts';
+import { startNewsFeeds } from './listeners/newsFeeds';
 
 async function start() {
   try {
@@ -19,7 +20,8 @@ async function start() {
 
   // Siren alerts from Telegram. If it fails, the rest of the API keeps working.
   startTelegramAlerts().catch((err) => console.error('Telegram alerts could not start:', err.message));
-
+  startNewsFeeds();
+  
   const shutdown = (signal: string) => {
     console.log(`${signal} received, shutting down`);
     server.close(async () => {

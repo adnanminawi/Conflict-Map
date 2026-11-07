@@ -8,7 +8,7 @@ import { alertsRoutes } from './alerts.routes';
 import { sidesRoutes } from './sides.route';
 import { countriesRoutes } from './countries.routes';
 import { weaponsRoutes } from './weapons.routes';
-
+import { newsRoutes } from './news.routes';
 export const routes = Router();
 
 routes.get('/health', async (_req, res) => {
@@ -28,3 +28,4 @@ routes.use('/alerts', alertsRoutes);
 routes.use('/sides', sidesRoutes);
 routes.use('/countries', countriesRoutes);
 routes.use('/weapons', weaponsRoutes);
+routes.use('/news', newsRoutes);

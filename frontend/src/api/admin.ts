@@ -1,6 +1,6 @@
 // Calls used by the admin page.
 import { api } from './client'
-import type { AdminEvent, EventStatus, EventType, ImportSummary, KmlImportInput, LocationType, NewEvent, LayerVersion, SaveLayerInput, SaveLayerResult, LayerImportInput,NewSide,Side,Weapon,WeaponType,WeaponInput } from '../types'
+import type { AdminEvent, EventStatus, EventType, ImportSummary, KmlImportInput, LocationType, NewEvent, LayerVersion, SaveLayerInput, SaveLayerResult, LayerImportInput,NewSide,Side,Weapon,WeaponType,WeaponInput,AdminNewsItem,NewsStatus } from '../types'
 
 export async function login(username: string, password: string): Promise<string> {
   const { data } = await api.post<{ token: string }>('/auth/login', { username, password })
@@ -96,4 +96,16 @@ export async function deleteWeapon(id: number): Promise<void> {
 }
 export async function deleteLocation(id:number): Promise<void> {
   await api.delete(`/locations/${id}`)  
+}
+export async function fetchAdminNews(): Promise<AdminNewsItem[]> {
+  const { data } = await api.get<AdminNewsItem[]>('/news/admin')
+  return data
+}
+
+export async function updateNewsStatus(id: number, status: NewsStatus): Promise<void> {
+  await api.patch(`/news/${id}/status`, { status })
+}
+
+export async function deleteNews(id: number): Promise<void> {
+  await api.delete(`/news/${id}`)
 }
