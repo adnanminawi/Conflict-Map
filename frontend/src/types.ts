@@ -222,3 +222,20 @@ export interface WeaponInput {
   source: string
   description: string
 }
+export interface NewsItem {
+  id: number
+  title: string
+  summary: string
+  url: string | null
+  source_name: string
+  lang: 'en' | 'ar'
+  published_at: string
+}
+
+// 'published' = on the site, 'draft' = hidden by the admin
+export type NewsStatus = 'draft' | 'published'
+
+// What the admin sees (GET /api/news/admin)
+export interface AdminNewsItem extends NewsItem {
+  status: NewsStatus
+}

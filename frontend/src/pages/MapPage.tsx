@@ -32,6 +32,7 @@ import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config
 import { fetchWeapons } from '../api/weapons'
 import { rangeBounds, setupWeaponLayers, showWeapons, type PlacedWeapon } from '../map/weaponsLayer'
 import WeaponsPanel from '../components/WeaponsPanel'
+import NewsPanel from '../components/Newspanel'
 import type { AlertsResponse, MapEvent, MapLayer, MapLocation, Weapon } from '../types'
 
 // The editor is only downloaded when an admin is logged in. Visitors never load it.
@@ -62,6 +63,11 @@ export default function MapPage() {
   // Admin: the layer open in the editor is hidden from the normal display
   const [editingName, setEditingName] = useState<string | null>(null)
   const isAdmin = localStorage.getItem(TOKEN_KEY) !== null
+
+  // Is the news box (right side) open? Read when zooming, so the map leaves room for it.
+  // A ref, not state: changing it doesn't need to redraw the page.
+  const newsOpen = useRef(false)
+  const rightRoom = () => (newsOpen.current ? 360 : 70) // 360 = the news box + the zoom buttons
 
   const [weapons, setWeapons] = useState<Weapon[]>([])
 
@@ -184,7 +190,7 @@ export default function MapPage() {
           return
         }
         stop = showReach(map, reach)
-        const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 70 } : 30
+        const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: rightRoom() } : 30
         map.fitBounds(reachBounds(reach), { padding, duration: 800 })
       })
       .catch(() => !cancelled && setReachError('Could not draw the reach. Check your connection and try again.'))
@@ -256,7 +262,7 @@ export default function MapPage() {
       setPlaced((list) => [...list, { id, weapon, center }])
       setPlacing(null)
       // Show the whole reach: zoom so the circle fits (room for the box on the left and the zoom buttons on the right)
-      const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: 70 } : 30
+      const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: rightRoom() } : 30
       map!.fitBounds(rangeBounds(center, weapon.range_km), { padding, duration: 800 })
     }
     function onKey(e: KeyboardEvent) {
@@ -289,7 +295,7 @@ export default function MapPage() {
     }
     const box = countryBox(code, locations, events, layers)
     // Leave room for the tabs (top), the box (left) and the zoom buttons (right). Phones: small margins.
-    const padding = window.innerWidth > 600 ? { top: 90, bottom: 40, left: 290, right: 70 } : 40
+    const padding = window.innerWidth > 600 ? { top: 90, bottom: 40, left: 290, right: rightRoom() } : 40
     if (box) map.fitBounds(box, { padding, maxZoom: 9 })
   }
 
@@ -343,11 +349,15 @@ export default function MapPage() {
         />
       </div>
 
-      {isAdmin && map && (
-        <Suspense fallback={null}>
-          <MapEditor map={map} layers={layers} onEditingChange={setEditingName} onSaved={loadLayers} />
-        </Suspense>
-      )}
+      {/* Right side: the map editor (admins only) on top, the news under it. Same idea as the left side. */}
+      <div className="map-side map-side-right">
+        {isAdmin && map && (
+          <Suspense fallback={null}>
+            <MapEditor map={map} layers={layers} onEditingChange={setEditingName} onSaved={loadLayers} />
+          </Suspense>
+        )}
+        <NewsPanel onOpenChange={(open) => (newsOpen.current = open)} />
+      </div>
     </>
   )
 }

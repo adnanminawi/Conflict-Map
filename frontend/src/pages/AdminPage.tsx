@@ -6,9 +6,9 @@ import { TOKEN_KEY } from '../api/client'
 import LocationsAdmin from '../components/Locationsadmin'
 import LayerImport from '../components/LayerImport'
 import WeaponsAdmin from '../components/WeaponsAdmin'
+import NewsAdmin from '../components/Newsadmin'
 
-type Tab = 'list' | 'add' | 'bases' | 'frontlines' | 'weapons'
-
+type Tab = 'list' | 'add' | 'bases' | 'frontlines' | 'weapons' | 'news'
 
 // The admin page: shows the login form, or the admin tools once logged in.
 export default function AdminPage() {
@@ -42,7 +42,7 @@ export default function AdminPage() {
         <div className="brand">
           Conflict Map
         </div>
- 
+
         <nav className="tabs">
           <button className={tab === 'list' ? 'tab active' : 'tab'} onClick={() => setTab('list')}>
             Events
@@ -59,8 +59,11 @@ export default function AdminPage() {
           <button className={tab === 'weapons' ? 'tab active' : 'tab'} onClick={() => setTab('weapons')}>
             Weapons
           </button>
+          <button className={tab === 'news' ? 'tab active' : 'tab'} onClick={() => setTab('news')}>
+            News
+          </button>
         </nav>
- 
+
         <div className="topbar-links">
           <a href="/">View map</a>
           <button className="btn btn-ghost" onClick={handleLogout}>
@@ -68,13 +71,14 @@ export default function AdminPage() {
           </button>
         </div>
       </header>
- 
+
       <main className="admin-content">
         {tab === 'list' && <EventList onLoggedOut={handleLogout} />}
         {tab === 'add' && <EventForm onLoggedOut={handleLogout} />}
         {tab === 'bases' && <LocationsAdmin onLoggedOut={handleLogout} />}
         {tab === 'frontlines' && <LayerImport onLoggedOut={handleLogout} />}
         {tab === 'weapons' && <WeaponsAdmin onLoggedOut={handleLogout} />}
+        {tab === 'news' && <NewsAdmin onLoggedOut={handleLogout} />}
       </main>
     </div>
   )
