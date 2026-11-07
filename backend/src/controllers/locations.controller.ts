@@ -46,10 +46,25 @@ export async function importKml(req: Request, res: Response, next: NextFunction)
   }
 }
 
+// DELETE /api/locations/:id  (admin only)
 export async function deleteLocation(req: Request, res: Response, next: NextFunction) {
   try {
     await locationsService.deleteLocation(readId(req.params.id));
     res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/locations/delete-many  { ids: [1, 2, 3] }  (admin only) → { deleted: 3 }
+export async function deleteManyLocations(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || !ids.every((id) => Number.isInteger(id) && id > 0)) {
+      throw AppError.badRequest('ids must be a list of location ids');
+    }
+    const deleted = await locationsService.deleteLocations(ids);
+    res.json({ deleted });
   } catch (err) {
     next(err);
   }

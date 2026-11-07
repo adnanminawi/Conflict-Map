@@ -69,3 +69,11 @@ export async function deleteById(id: number): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>('DELETE FROM locations WHERE id = ?', [id]);
   return result.affectedRows;
 }
+
+// Deletes many locations in one query. Returns how many were deleted.
+// One "?" per id: the ids are still sent as values, never pasted into the SQL.
+export async function deleteMany(ids: number[]): Promise<number> {
+  const marks = ids.map(() => '?').join(', ');
+  const [result] = await db.execute<ResultSetHeader>(`DELETE FROM locations WHERE id IN (${marks})`, ids);
+  return result.affectedRows;
+}
