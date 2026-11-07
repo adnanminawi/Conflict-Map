@@ -1,4 +1,3 @@
-
 import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
 import type { MapLocation } from '../types'
@@ -79,9 +78,13 @@ export async function setupLocationLayers(map: maplibregl.Map) {
     },
   })
 
+  // Events are drawn on top of bases: if the click is on an event, only the event reacts
+  const onEvent = (point: maplibregl.PointLike) =>
+    map.getLayer('events-pins') !== undefined && map.queryRenderedFeatures(point, { layers: ['events-clusters', 'events-pins'] }).length > 0
+
   // 6. Click a cluster → zoom in until it splits
   map.on('click', 'locations-clusters', async (e) => {
-    if (!arePopupsEnabled()) return // measuring, placing a weapon or editing: the click is for that
+    if (!arePopupsEnabled() || onEvent(e.point)) return // measuring, placing a weapon or editing: the click is for that
     const cluster = e.features?.[0]
     if (!cluster) return
     const source = map.getSource('locations') as GeoJSONSource
@@ -91,7 +94,7 @@ export async function setupLocationLayers(map: maplibregl.Map) {
 
   // 7. Click a base → its popup
   map.on('click', 'locations-icons', (e) => {
-    if (!arePopupsEnabled()) return
+    if (!arePopupsEnabled() || onEvent(e.point)) return
     const base = e.features?.[0]
     if (!base) return
     const p = base.properties

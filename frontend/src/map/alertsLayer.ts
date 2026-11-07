@@ -2,7 +2,7 @@ import * as maplibregl from 'maplibre-gl'
 import type { Feature, FeatureCollection } from 'geojson'
 import type { AlertsResponse } from '../types'
 import { buildPopup } from './popup'
-import { arePopupsEnabled } from './shapesLayer'
+import { arePopupsEnabled, isOnPoint } from './shapesLayer'
 
 // Color of each kind of alert
 export const ALERT_COLORS = { rockets: '#ff2d2d', drone: '#ff8c00', other: '#ffd400' }
@@ -62,8 +62,8 @@ export function setupAlertLayers(map: maplibregl.Map) {
     if (e.originalEvent.target !== map.getCanvas()) return
     // A placed weapon's launch point has its own popup (weaponsLayer.ts)
     if (map.getLayer('weapon-center') && map.queryRenderedFeatures(e.point, { layers: ['weapon-center'] }).length > 0) return
-    // Bases and their clusters have their own click (locationsLayer.ts)
-    if (map.getLayer('locations-icons') && map.queryRenderedFeatures(e.point, { layers: ['locations-clusters', 'locations-icons'] }).length > 0) return
+    // Events and bases have their own popups
+    if (isOnPoint(map, e.point)) return
     const area = map.queryRenderedFeatures(e.point, { layers: ['alerts-fill', 'alerts-dots'] })[0]
     if (!area) return
 

@@ -7,10 +7,10 @@ import { fetchLayers } from '../api/layers'
 import { fetchAlerts } from '../api/alerts'
 import { TOKEN_KEY } from '../api/client'
 import { setupLocationLayers, showLocations } from '../map/locationsLayer'
+import { setupEventLayers, showEvents } from '../map/Eventslayer'
 import { arePopupsEnabled, enableShapePopups, setupShapeLayers, showShapes } from '../map/shapesLayer'
 import { setupAlertLayers, showAlerts, ALERT_MINUTES } from '../map/alertsLayer'
 import { computeReach, highlightReach, reachBounds, setupReachLayers, showReach } from '../map/reachLayer'
-import { buildPopup } from '../map/popup'
 import {
   ALL,
   ALL_VISIBLE,
@@ -113,7 +113,8 @@ export default function MapPage() {
       setupAlertLayers(map) // after the shapes, so alerts are drawn on top
       setupReachLayers(map)
       setupWeaponLayers(map)
-      await setupLocationLayers(map) // last, so bases are drawn on top
+      await setupLocationLayers(map) // bases and events last, so they're drawn on top
+      setupEventLayers(map) // events above bases
       if (mapRef.current === map) setMap(map)
     })
 
@@ -211,18 +212,10 @@ export default function MapPage() {
     }
   }, [map, reachOn, country, weapons])
 
-  // Events
+  // Events: the selected country only, or none when switched off. The map groups them into clusters by itself.
   useEffect(() => {
-    if (!map || !visible.events) return
-    const markers = events
-      .filter((e) => inCountry(e.country_code, country))
-      .map((event) =>
-        new maplibregl.Marker({ color: event.color ?? '#E53935' })
-          .setLngLat([event.lng, event.lat])
-          .setPopup(new maplibregl.Popup({ offset: 25 }).setDOMContent(eventPopup(event)))
-          .addTo(map),
-      )
-    return () => markers.forEach((m) => m.remove())
+    if (!map) return
+    showEvents(map, visible.events ? events.filter((e) => inCountry(e.country_code, country)) : [])
   }, [map, events, visible.events, country])
 
   // Frontlines: right country, side switched on, not the layer being edited,
@@ -369,12 +362,4 @@ export default function MapPage() {
       </div>
     </>
   )
-}
-
-function eventPopup(event: MapEvent): HTMLElement {
-  return buildPopup(event.title, event.type_name, [
-    new Date(event.occurred_at).toLocaleString(),
-    event.location_name ? `Target: ${event.location_name}` : null,
-    event.description,
-  ])
 }

@@ -18,6 +18,14 @@ export function arePopupsEnabled() {
   return popupsEnabled
 }
 
+// Events and bases have their own clicks (eventsLayer.ts, locationsLayer.ts).
+// True if there is one at this spot, so the other popups (frontlines, sirens) don't open as well.
+const POINT_LAYERS = ['events-clusters', 'events-pins', 'locations-clusters', 'locations-icons']
+export function isOnPoint(map: maplibregl.Map, where: maplibregl.PointLike | [maplibregl.PointLike, maplibregl.PointLike]): boolean {
+  const layers = POINT_LAYERS.filter((id) => map.getLayer(id))
+  return layers.length > 0 && map.queryRenderedFeatures(where, { layers }).length > 0
+}
+
 // Direction of the last piece of a line, in degrees clockwise from north (for the arrowhead)
 function endBearing(line: Position[]): number {
   const [lng1, lat1] = line[line.length - 2]
@@ -194,8 +202,8 @@ export async function setupShapeLayers(map: maplibregl.Map) {
     if (map.getLayer('alerts-fill') && map.queryRenderedFeatures(box, { layers: ['alerts-fill', 'alerts-dots'] }).length > 0) return
     // A placed weapon's launch point has its own popup (weaponsLayer.ts)
     if (map.getLayer('weapon-center') && map.queryRenderedFeatures(box, { layers: ['weapon-center'] }).length > 0) return
-    // Bases and their clusters have their own click (locationsLayer.ts)
-    if (map.getLayer('locations-icons') && map.queryRenderedFeatures(box, { layers: ['locations-clusters', 'locations-icons'] }).length > 0) return
+    // Events and bases have their own popups
+    if (isOnPoint(map, box)) return
 
     const shape = map.queryRenderedFeatures(box, { layers: CLICKABLE })[0]
     if (!shape) return
