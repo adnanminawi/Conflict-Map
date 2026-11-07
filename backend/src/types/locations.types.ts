@@ -1,4 +1,4 @@
-
+// One base / airport as returned to the map.
 export interface MapLocation {
   id: number;
   name: string;
@@ -10,6 +10,8 @@ export interface MapLocation {
   type_name: string;
   icon: string;
 }
+
+// What a KML import did (or would do, in a dry run).
 export interface ImportSummary {
   dryRun: boolean;
   found: number; // placemarks in the file
@@ -18,4 +20,6 @@ export interface ImportSummary {
   notPoints: number; // lines / polygons, skipped
   invalid: number; // bad coordinates, skipped
   autoNamed: number; // had no real name, got one like "Military base EG-001"
+  byType: Record<string, number>; // saved per type name, e.g. { "Air defence": 94, "Radar": 18 }
+  guessed: number; // how many got their type from their name / folder (the rest: the chosen type)
 }
