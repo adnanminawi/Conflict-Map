@@ -3,9 +3,8 @@ import * as weaponsRepository from '../repositories/weapons.repository';
 import type { ImportSummary, LocationRow, SaveLocationInput } from '../types/locations.types';
 import { AppError } from '../utils/AppError';
 import { parseKml } from '../utils/kml';
-import { classifySite, systemNameOf } from '../utils/classifySite';
 import { checkCountry } from './countries.service';
-
+import { classifySite,systemNameOf} from '../utils/classifySite';
 export async function getLocations() {
   return locationsRepository.findAll();
 }
