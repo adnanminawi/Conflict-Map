@@ -4,6 +4,7 @@ import { AppError } from '../utils/AppError';
 import { parseKml } from '../utils/kml';
 import { classifySite } from '../utils/classifySite';
 import { checkCountry } from './countries.service';
+import * as weaponsRepository from '../repositories/weapons.repository';
 
 export async function getLocations() {
   return locationsRepository.findAll();
@@ -127,11 +128,22 @@ export async function deleteLocations(ids: number[]) {
 }
 
 // Checks the type and country, and turns the type code into its id
-async function toRow(input: SaveLocationInput): Promise<LocationRow> {
+  async function toRow(input: SaveLocationInput): Promise<LocationRow> {
   const typeId = await locationsRepository.findTypeIdByCode(input.typeCode);
   if (typeId === null) throw AppError.badRequest(`Unknown location type "${input.typeCode}"`);
   await checkCountry(input.countryCode);
-  return { typeId,weaponId:input.weaponId, name: input.name, countryCode: input.countryCode, lng: input.lng, lat: input.lat, description: input.description };
+
+  // A site can only hold a system of its own kind (the type codes match on purpose):
+  // an air defence site → an air defence system, a radar site → a radar. An airport → none.
+  if (input.weaponId !== null) {
+    const weaponType = await weaponsRepository.findTypeCodeById(input.weaponId);
+    if (weaponType === null) throw AppError.badRequest('weapon_id does not exist');
+    if (weaponType !== input.typeCode) {
+      throw AppError.badRequest(`This system (${weaponType}) can't be placed on a ${input.typeCode} site`);
+    }
+  }
+
+  return { typeId, weaponId: input.weaponId, name: input.name, countryCode: input.countryCode, lng: input.lng, lat: input.lat, description: input.description };
 }
 
 // Admin: add one location (placed by clicking the map). Returns its id.
