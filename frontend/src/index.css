@@ -1366,3 +1366,6 @@ textarea {
   flex: 1; /* the name takes the space, the Delete button stays on the right */
   min-width: 0;
 }
+.editor-coords {
+  font-variant-numeric: tabular-nums;
+}
