@@ -1,5 +1,4 @@
 
-
 // Guesses a site's type from its words (name, then KML folder), like a GIS "attribute rule".
 // Returns a location_types code, or null when no rule matches (the import then uses the admin's chosen type).
 // Checked in order: the first rule that matches wins. Add words here when a new file uses other names.
