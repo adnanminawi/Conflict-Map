@@ -1,8 +1,11 @@
+// Confirmed events (strikes, attacks…), drawn by the map itself with clustering, like the bases:
+// zoomed out, nearby events merge into a red circle with a number. Click it to zoom in; zoomed in, the pins appear.
 import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
 import type { MapEvent } from '../types'
 import { buildPopup } from './popup'
 import { arePopupsEnabled } from './shapesLayer'
+import { getPickHandler } from './pickMode'
 
 const DEFAULT_COLOR = '#E53935' // events without a type color
 const CLUSTER_UNTIL_ZOOM = 8 // from zoom 9, every event shows on its own
@@ -111,7 +114,8 @@ export function setupEventLayers(map: maplibregl.Map) {
 
   // 5. Click a cluster → zoom in until it splits
   map.on('click', 'events-clusters', async (e) => {
-    if (!arePopupsEnabled()) return // measuring, placing a weapon or editing: the click is for that
+    // Measuring, placing a weapon or drawing frontlines: the click is for that. Editing events: clusters still zoom.
+    if (!arePopupsEnabled() && !getPickHandler()) return
     const cluster = e.features?.[0]
     if (!cluster) return
     const source = map.getSource('events') as GeoJSONSource
@@ -121,16 +125,19 @@ export function setupEventLayers(map: maplibregl.Map) {
 
   // 6. Click a pin → the event's popup
   map.on('click', 'events-pins', (e) => {
-    if (!arePopupsEnabled()) return
     const event = shown.get(e.features?.[0]?.properties.id)
     if (!event) return
+    // The admin is editing on the map: pick this event instead of opening its popup
+    const pick = getPickHandler()
+    if (pick) return pick('event', event.id)
+    if (!arePopupsEnabled()) return
     new maplibregl.Popup({ offset: 30 }).setLngLat([event.lng, event.lat]).setDOMContent(eventPopup(event)).addTo(map)
   })
 
   // 7. Hand cursor over clusters and pins
   for (const id of ['events-clusters', 'events-pins']) {
-    map.on('mouseenter', id, () => arePopupsEnabled() && (map.getCanvas().style.cursor = 'pointer'))
-    map.on('mouseleave', id, () => arePopupsEnabled() && (map.getCanvas().style.cursor = ''))
+    map.on('mouseenter', id, () => (arePopupsEnabled() || getPickHandler()) && (map.getCanvas().style.cursor = 'pointer'))
+    map.on('mouseleave', id, () => (arePopupsEnabled() || getPickHandler()) && (map.getCanvas().style.cursor = ''))
   }
 }
 

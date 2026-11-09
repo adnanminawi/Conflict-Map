@@ -1,6 +1,6 @@
 // Calls used by the admin page.
 import { api } from './client'
-import type { AdminEvent, EventStatus, EventType, ImportSummary, KmlImportInput, LocationType, NewEvent, LayerVersion, SaveLayerInput, SaveLayerResult, LayerImportInput,NewSide,Side,Weapon,WeaponType,WeaponInput,AdminNewsItem,NewsStatus } from '../types'
+import type { AdminEvent, EventStatus, EventType, ImportSummary, KmlImportInput, LocationType, NewEvent, LayerVersion, SaveLayerInput, SaveLayerResult, LayerImportInput,NewSide,Side,Weapon,WeaponType,WeaponInput,AdminNewsItem,NewsStatus,LocationInput } from '../types'
 
 export async function login(username: string, password: string): Promise<string> {
   const { data } = await api.post<{ token: string }>('/auth/login', { username, password })
@@ -112,4 +112,18 @@ export async function deleteNews(id: number): Promise<void> {
 export async function deleteLocations(ids: number[]): Promise<number> {
   const { data } = await api.post<{ deleted: number }>('/locations/delete-many', { ids })
   return data.deleted
+}
+
+export async function createLocation(input: LocationInput): Promise<number> {
+  const { data } = await api.post<{ id: number }>('/locations', input)
+  return data.id
+}
+
+export async function updateLocation(id: number, input: LocationInput): Promise<void> {
+  await api.put(`/locations/${id}`, input)
+}
+
+// The map editor: change one event (same fields as creating one; its status stays as it is)
+export async function updateEvent(id: number, event: NewEvent): Promise<void> {
+  await api.put(`/events/${id}`, event)
 }

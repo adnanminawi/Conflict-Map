@@ -1,5 +1,5 @@
 import * as locationsRepository from '../repositories/locations.repository';
-import type { ImportSummary } from '../types/locations.types';
+import type { SaveLocationInput, ImportSummary,LocationRow } from '../types/locations.types';
 import { AppError } from '../utils/AppError';
 import { parseKml } from '../utils/kml';
 import { classifySite } from '../utils/classifysite';
@@ -116,7 +116,6 @@ export async function deleteLocation(id: number) {
   if (deleted === 0) throw AppError.notFound('Location not found');
 }
 
-
 const MAX_DELETE = 5000; // one request can't delete more than this
 
 // Admin: delete many at once (the "Delete selected" button). Returns how many were deleted.
@@ -124,4 +123,24 @@ export async function deleteLocations(ids: number[]) {
   if (ids.length === 0) throw AppError.badRequest('Choose at least one location');
   if (ids.length > MAX_DELETE) throw AppError.badRequest(`At most ${MAX_DELETE} locations at once`);
   return locationsRepository.deleteMany([...new Set(ids)]); // the same id twice counts once
+}
+
+// Checks the type and country, and turns the type code into its id
+async function toRow(input: SaveLocationInput): Promise<LocationRow> {
+  const typeId = await locationsRepository.findTypeIdByCode(input.typeCode);
+  if (typeId === null) throw AppError.badRequest(`Unknown location type "${input.typeCode}"`);
+  await checkCountry(input.countryCode);
+  return { typeId, name: input.name, countryCode: input.countryCode, lng: input.lng, lat: input.lat, description: input.description };
+}
+
+// Admin: add one location (placed by clicking the map). Returns its id.
+export async function createLocation(input: SaveLocationInput) {
+  const id = await locationsRepository.insert(await toRow(input));
+  return { id };
+}
+
+// Admin: change one location (moved, renamed, other type…)
+export async function updateLocation(id: number, input: SaveLocationInput) {
+  const changed = await locationsRepository.update(id, await toRow(input));
+  if (changed === 0) throw AppError.notFound('Location not found');
 }

@@ -6,6 +6,7 @@ import type { GeoJSONSource } from 'maplibre-gl'
 import type { MapLocation } from '../types'
 import { buildPopup } from './popup'
 import { arePopupsEnabled } from './shapesLayer'
+import { getPickHandler } from './pickMode'
 import airportIcon from '../assets/icons/airport.png'
 import militaryBaseIcon from '../assets/icons/military_base.png'
 import navalBaseIcon from '../assets/icons/naval_base.png'
@@ -91,7 +92,8 @@ export async function setupLocationLayers(map: maplibregl.Map) {
 
   // 6. Click a cluster → zoom in until it splits
   map.on('click', 'locations-clusters', async (e) => {
-    if (!arePopupsEnabled() || onEvent(e.point)) return // measuring, placing a weapon or editing: the click is for that
+    // Measuring, placing a weapon or drawing frontlines: the click is for that. Editing bases: clusters still zoom.
+    if ((!arePopupsEnabled() && !getPickHandler()) || onEvent(e.point)) return
     const cluster = e.features?.[0]
     if (!cluster) return
     const source = map.getSource('locations') as GeoJSONSource
@@ -101,10 +103,14 @@ export async function setupLocationLayers(map: maplibregl.Map) {
 
   // 7. Click a base → its popup
   map.on('click', 'locations-icons', (e) => {
-    if (!arePopupsEnabled() || onEvent(e.point)) return
+    if (onEvent(e.point)) return
     const base = e.features?.[0]
     if (!base) return
     const p = base.properties
+    // The admin is editing on the map: pick this base instead of opening its popup
+    const pick = getPickHandler()
+    if (pick) return pick('location', p.id)
+    if (!arePopupsEnabled()) return
     new maplibregl.Popup({ offset: 14 })
       .setLngLat((base.geometry as GeoJSON.Point).coordinates as [number, number])
       .setDOMContent(buildPopup(p.name, p.type_name, [p.country_code, p.description]))
@@ -113,8 +119,8 @@ export async function setupLocationLayers(map: maplibregl.Map) {
 
   // 8. Hand cursor over clusters and bases
   for (const id of LOCATION_LAYERS) {
-    map.on('mouseenter', id, () => arePopupsEnabled() && (map.getCanvas().style.cursor = 'pointer'))
-    map.on('mouseleave', id, () => arePopupsEnabled() && (map.getCanvas().style.cursor = ''))
+    map.on('mouseenter', id, () => (arePopupsEnabled() || getPickHandler()) && (map.getCanvas().style.cursor = 'pointer'))
+    map.on('mouseleave', id, () => (arePopupsEnabled() || getPickHandler()) && (map.getCanvas().style.cursor = ''))
   }
 }
 
@@ -128,6 +134,7 @@ export function showLocations(map: maplibregl.Map, locations: MapLocation[]) {
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [l.lng, l.lat] },
       properties: {
+        id: l.id,
         name: l.name,
         type: ICONS[l.type_code] ? l.type_code : 'military_base', // unknown type → the base icon
         type_name: l.type_name,

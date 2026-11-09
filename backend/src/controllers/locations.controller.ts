@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as locationsService from '../services/locations.service';
+import type { SaveLocationInput } from '../types/locations.types';
 import { AppError } from '../utils/AppError';
 
 // GET /api/locations — all bases and airports
@@ -68,6 +69,49 @@ export async function deleteManyLocations(req: Request, res: Response, next: Nex
   } catch (err) {
     next(err);
   }
+}
+
+// POST /api/locations  (admin only): add one location placed on the map → { id }
+export async function createLocation(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.status(201).json(await locationsService.createLocation(readLocationBody(req.body)));
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PUT /api/locations/:id  (admin only): change one location (moved, renamed, other type…)
+export async function updateLocation(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = readId(req.params.id);
+    await locationsService.updateLocation(id, readLocationBody(req.body));
+    res.json({ id });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Checks the body of a create / update: { type, name, country_code, description?, lat, lng }
+function readLocationBody(body: any): SaveLocationInput {
+  if (!body || typeof body !== 'object') throw AppError.badRequest('Body must be JSON');
+
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  if (name.length < 1 || name.length > 200) throw AppError.badRequest('name is required (max 200 characters)');
+
+  const typeCode = typeof body.type === 'string' ? body.type.trim() : '';
+  if (!typeCode) throw AppError.badRequest('type is required, e.g. "air_defence"');
+
+  const countryCode = typeof body.country_code === 'string' ? body.country_code.trim().toUpperCase() : '';
+  if (!/^[A-Z]{2}$/.test(countryCode)) throw AppError.badRequest('country_code must be a 2-letter code, e.g. IL');
+
+  const description = typeof body.description === 'string' && body.description.trim() !== '' ? body.description.trim() : null;
+
+  const lat = Number(body.lat);
+  const lng = Number(body.lng);
+  if (body.lat == null || !Number.isFinite(lat) || lat < -90 || lat > 90) throw AppError.badRequest('lat must be between -90 and 90');
+  if (body.lng == null || !Number.isFinite(lng) || lng < -180 || lng > 180) throw AppError.badRequest('lng must be between -180 and 180');
+
+  return { typeCode, name, countryCode, description, lat, lng };
 }
 
 // The :id in the URL must be a positive whole number

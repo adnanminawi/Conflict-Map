@@ -2,6 +2,7 @@ import type { Feature, FeatureCollection } from 'geojson'
 
 export interface MapEvent {
   id: number
+  event_type_id: number
   title: string
   description: string | null
   occurred_at: string // JSON turns dates into ISO strings
@@ -31,6 +32,7 @@ export interface MapLocation {
 // Event types for the admin form's dropdown (GET /api/events/types).
 export interface EventType {
   id: number
+  color: string | null
   name: string
 }
 
@@ -241,3 +243,11 @@ export type NewsStatus = 'draft' | 'published'
 export interface AdminNewsItem extends NewsItem {
   status: NewsStatus
 }
+export interface LocationInput {
+     type: string // a location type code, e.g. 'air_defence'
+     name: string
+     country_code: string
+     description: string | null
+     lat: number
+     lng: number
+   }

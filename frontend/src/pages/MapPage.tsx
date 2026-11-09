@@ -38,6 +38,7 @@ import type { AlertsResponse, MapEvent, MapLayer, MapLocation, Weapon } from '..
 
 // The editor is only downloaded when an admin is logged in. Visitors never load it.
 const MapEditor = lazy(() => import('../components/MapEditor'))
+const MapItemEditor = lazy(() => import('../components/MapItemEditor'))
 maplibregl.setWorkerUrl(workerUrl)
 const EVENTS_REFRESH_MS = 60_000
 const ALERTS_REFRESH_MS = 10_000 // siren alerts change fast
@@ -66,6 +67,10 @@ export default function MapPage() {
   const justPlacedId = useRef<number | undefined>(undefined) // the weapon whose ring should grow when drawn
   // Admin: the layer open in the editor is hidden from the normal display
   const [editingName, setEditingName] = useState<string | null>(null)
+  // Admin: editing bases and events on the map. The open one is hidden from the normal display.
+  const [itemEditorOn, setItemEditorOn] = useState(false)
+  const [hiddenItem, setHiddenItem] = useState<{ location: number | null; event: number | null }>({ location: null, event: null })
+  const [closeItemEditor, setCloseItemEditor] = useState(0) // goes up when the ruler or a weapon needs map clicks
   const isAdmin = localStorage.getItem(TOKEN_KEY) !== null
 
   // Is the news box (right side) open? Read when zooming, so the map leaves room for it.
@@ -102,7 +107,10 @@ export default function MapPage() {
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     // Under the zoom buttons. Starting to measure cancels placing a weapon (both use map clicks).
-    const measure = new MeasureControl(() => setPlacing(null))
+    const measure = new MeasureControl(() => {
+      setPlacing(null)
+      setCloseItemEditor((n) => n + 1)
+    })
     map.addControl(measure, 'top-right')
     measureRef.current = measure
     mapRef.current = map
@@ -126,11 +134,24 @@ export default function MapPage() {
 
   // ---------- 2. Load the data ----------
 
-  // Bases and frontlines: once (they rarely change)
-  useEffect(() => {
+  function loadLocations() {
     fetchLocations()
       .then(setLocations)
       .catch((err) => console.error('Could not load bases and airports', err))
+  }
+
+  async function loadEvents() {
+    try {
+      setEvents(await fetchEvents())
+      setStatus(null)
+    } catch {
+      setStatus('Could not load events — is the backend running?')
+    }
+  }
+
+  // Bases and frontlines: once (they rarely change)
+  useEffect(() => {
+    loadLocations()
     loadLayers()
     fetchWeapons()
       .then(setWeapons)
@@ -139,17 +160,8 @@ export default function MapPage() {
 
   // Events: now and every minute
   useEffect(() => {
-    async function load() {
-      try {
-        const list = await fetchEvents()
-        setEvents(list)
-        setStatus(null)
-      } catch {
-        setStatus('Could not load events — is the backend running?')
-      }
-    }
-    load()
-    const timer = setInterval(load, EVENTS_REFRESH_MS)
+    loadEvents()
+    const timer = setInterval(loadEvents, EVENTS_REFRESH_MS)
     return () => clearInterval(timer)
   }, [])
 
@@ -175,10 +187,10 @@ export default function MapPage() {
   useEffect(() => {
     if (!map) return
     const shown = locations.filter(
-      (l) => visible[l.type_code as Category] !== false && inCountry(l.country_code, country),
+      (l) => l.id !== hiddenItem.location && visible[l.type_code as Category] !== false && inCountry(l.country_code, country),
     )
     showLocations(map, shown) // the map groups them into clusters by itself
-  }, [map, locations, visible, country])
+  }, [map, locations, visible, country, hiddenItem.location])
 
   // Reach from the border of the selected country: one ring per distance its weapons reach
   useEffect(() => {
@@ -215,8 +227,8 @@ export default function MapPage() {
   // Events: the selected country only, or none when switched off. The map groups them into clusters by itself.
   useEffect(() => {
     if (!map) return
-    showEvents(map, visible.events ? events.filter((e) => inCountry(e.country_code, country)) : [])
-  }, [map, events, visible.events, country])
+    showEvents(map, visible.events ? events.filter((e) => e.id !== hiddenItem.event && inCountry(e.country_code, country)) : [])
+  }, [map, events, visible.events, country, hiddenItem.event])
 
   // Frontlines: right country, side switched on, not the layer being edited,
   // and inside each layer only the shapes whose switch is on (frontlines / fighting / explosion)
@@ -252,6 +264,7 @@ export default function MapPage() {
   useEffect(() => {
     if (!map || !placing) return
     measureRef.current?.stop() // both use map clicks: placing wins
+    setCloseItemEditor((n) => n + 1)
     const popupsBefore = arePopupsEnabled()
     enableShapePopups(false) // this click is for placing, not for opening popups
     map.getCanvas().style.cursor = 'crosshair'
@@ -355,7 +368,25 @@ export default function MapPage() {
       <div className="map-side map-side-right">
         {isAdmin && map && (
           <Suspense fallback={null}>
-            <MapEditor map={map} layers={layers} onEditingChange={setEditingName} onSaved={loadLayers} />
+            <MapItemEditor
+              map={map}
+              locations={locations}
+              events={events}
+              defaultCountry={country === ALL ? '' : country}
+              disabled={editingName !== null}
+              closeSignal={closeItemEditor}
+              onActiveChange={(on) => {
+                setItemEditorOn(on)
+                if (on) {
+                  setPlacing(null) // map clicks are for editing now
+                  measureRef.current?.stop()
+                }
+              }}
+              onHide={setHiddenItem}
+              onSaved={(kind) => (kind === 'location' ? loadLocations() : loadEvents())}
+            />
+            {/* One editor at a time: the frontline editor waits while bases & events are being edited */}
+            {!itemEditorOn && <MapEditor map={map} layers={layers} onEditingChange={setEditingName} onSaved={loadLayers} />}
           </Suspense>
         )}
         <NewsPanel onOpenChange={(open) => (newsOpen.current = open)} />
