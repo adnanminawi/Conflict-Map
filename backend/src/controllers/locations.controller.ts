@@ -102,8 +102,6 @@ function readLocationBody(body: any): SaveLocationInput {
   if (weaponId !== null && (!Number.isInteger(weaponId) || weaponId < 1)) {
     throw AppError.badRequest('weapon_id must be a weapon id or null');
   }
-
-
   const typeCode = typeof body.type === 'string' ? body.type.trim() : '';
   if (!typeCode) throw AppError.badRequest('type is required, e.g. "air_defence"');
 
@@ -117,7 +115,7 @@ function readLocationBody(body: any): SaveLocationInput {
   if (body.lat == null || !Number.isFinite(lat) || lat < -90 || lat > 90) throw AppError.badRequest('lat must be between -90 and 90');
   if (body.lng == null || !Number.isFinite(lng) || lng < -180 || lng > 180) throw AppError.badRequest('lng must be between -180 and 180');
 
-  return { typeCode, name, countryCode, description, lat, lng };
+  return { typeCode, name,weaponId, countryCode, description, lat, lng };
 }
 
 // The :id in the URL must be a positive whole number
