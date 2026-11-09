@@ -20,9 +20,9 @@ const GROW_MS = 650 // how long the ring takes to grow when placed
 
 const colorOf = (w: Weapon) => w.side_color ?? DEFAULT_RANGE_COLOR
 
-// The point `km` away from `center` in direction `bearing` (degrees clockwise from north),
+// The point `km` away from `center` in direction `bearing` (degrees clockwise from north). Also used by defenceLayer.ts.
 // following the Earth's curve. That's why a 1,000 km ring looks taller far from the equator: it is correct.
-function destination([lng, lat]: [number, number], km: number, bearing: number): Position {
+export function destination([lng, lat]: [number, number], km: number, bearing: number): Position {
   const toRad = Math.PI / 180
   const d = km / EARTH_RADIUS_KM
   const b = bearing * toRad
@@ -33,8 +33,9 @@ function destination([lng, lat]: [number, number], km: number, bearing: number):
   return [lng2 / toRad, lat2 / toRad]
 }
 
-// Points of a circle of `km` around `center` (the first point repeated at the end, as GeoJSON wants)
-function circle(center: [number, number], km: number, steps = 128): Position[] {
+// Points of a circle of `km` around `center` (the first point repeated at the end, as GeoJSON wants).
+// Also used by defenceLayer.ts for the air defence coverage.
+export function circle(center: [number, number], km: number, steps = 128): Position[] {
   const points: Position[] = []
   for (let i = 0; i <= steps; i++) points.push(destination(center, km, (i / steps) * 360))
   return points

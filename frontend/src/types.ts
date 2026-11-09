@@ -19,6 +19,7 @@ export interface MapEvent {
 // Same shape as GET /api/locations returns.
 export interface MapLocation {
   id: number
+  weapon_id: number | null
   name: string
   country_code: string
   description: string | null
@@ -245,6 +246,7 @@ export interface AdminNewsItem extends NewsItem {
 }
 export interface LocationInput {
      type: string // a location type code, e.g. 'air_defence'
+     weapon_id: number | null
      name: string
      country_code: string
      description: string | null

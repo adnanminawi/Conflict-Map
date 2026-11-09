@@ -113,7 +113,7 @@ export async function setupLocationLayers(map: maplibregl.Map) {
     if (!arePopupsEnabled()) return
     new maplibregl.Popup({ offset: 14 })
       .setLngLat((base.geometry as GeoJSON.Point).coordinates as [number, number])
-      .setDOMContent(buildPopup(p.name, p.type_name, [p.country_code, p.description]))
+      .setDOMContent(buildPopup(p.name, p.type_name, [p.system || null, p.country_code, p.description]))
       .addTo(map)
   })
 
@@ -125,7 +125,8 @@ export async function setupLocationLayers(map: maplibregl.Map) {
 }
 
 // Shows these bases (already filtered by type and country). The map groups them by itself.
-export function showLocations(map: maplibregl.Map, locations: MapLocation[]) {
+// systems: air defence sites' system label by weapon id, e.g. 21 → "Iron Dome · 70 km" (shown in the popup)
+export function showLocations(map: maplibregl.Map, locations: MapLocation[], systems: Map<number, string> = new Map()) {
   const source = map.getSource('locations') as GeoJSONSource | undefined
   if (!source) return
   source.setData({
@@ -140,6 +141,7 @@ export function showLocations(map: maplibregl.Map, locations: MapLocation[]) {
         type_name: l.type_name,
         country_code: l.country_code,
         description: l.description ?? '',
+        system: l.weapon_id ? systems.get(l.weapon_id) ?? '' : '',
       },
     })),
   })

@@ -1369,3 +1369,89 @@ textarea {
 .editor-coords {
   font-variant-numeric: tabular-nums;
 }
+/* ---------- Test the weapon reach ---------- */
+/* The button that opens it (where the weapons box used to be) */
+.map-panel.test-start {
+  padding: 10px;
+}
+
+.test-start .btn {
+  width: 100%;
+}
+
+/* The bar on top while testing: title + × to leave */
+.map-panel.test-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.test-close {
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  line-height: 1;
+  color: #e6e9ee;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.test-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Air defence rows are divs (they hold a button), so they need the box sizing a button has by itself */
+div.reach-weapon {
+  box-sizing: border-box;
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Air defence rows: the site count and the "Place it" button on one line */
+.defence-row-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.place-btn {
+  padding: 2px 10px;
+  font: inherit;
+  font-size: 11px;
+  color: #e6e9ee;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.place-btn:hover,
+.place-btn[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.defence-note {
+  padding-top: 6px;
+}
+
+/* Two boxes in the left column: they share the height and their lists scroll */
+.map-side .weapons-panel {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+
+/* Air defence box in the right column (testing mode): more room there, so the list shows all systems */
+.map-side-right .weapons-panel {
+  max-height: 85%;
+}
+
+.map-side-right .reach-list {
+  max-height: none;
+}

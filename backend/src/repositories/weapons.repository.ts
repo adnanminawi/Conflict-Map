@@ -72,7 +72,17 @@ export async function update(id: number, weapon: WeaponInput): Promise<'ok' | 'n
     throw err;
   }
 }
-
+export async function findTypeCodeById(id: number): Promise<string | null> {
+  const [rows] = await db.execute<({ code: string } & RowDataPacket)[]>(
+    `SELECT t.code
+    FROM weapons w
+    JOIN weapon_types t ON t.id = w.weapon_type_id
+    WHERE w.id=?`,
+    [id],
+    );
+  return rows[0]?.code ?? null;
+}
+ 
 // Returns how many rows were deleted (0 = no weapon with that id)
 export async function deleteById(id: number): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>('DELETE FROM weapons WHERE id = ?', [id]);

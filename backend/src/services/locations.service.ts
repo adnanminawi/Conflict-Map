@@ -2,7 +2,7 @@ import * as locationsRepository from '../repositories/locations.repository';
 import type { SaveLocationInput, ImportSummary,LocationRow } from '../types/locations.types';
 import { AppError } from '../utils/AppError';
 import { parseKml } from '../utils/kml';
-import { classifySite } from '../utils/classifysite';
+import { classifySite } from '../utils/classifySite';
 import { checkCountry } from './countries.service';
 
 export async function getLocations() {
@@ -98,6 +98,7 @@ export async function importKml(
         typeId: type.id,
         name,
         countryCode: country,
+        weaponId : null,
         lng: point.lng,
         lat: point.lat,
         description: point.description,
@@ -130,17 +131,28 @@ async function toRow(input: SaveLocationInput): Promise<LocationRow> {
   const typeId = await locationsRepository.findTypeIdByCode(input.typeCode);
   if (typeId === null) throw AppError.badRequest(`Unknown location type "${input.typeCode}"`);
   await checkCountry(input.countryCode);
-  return { typeId, name: input.name, countryCode: input.countryCode, lng: input.lng, lat: input.lat, description: input.description };
+  return { typeId,weaponId:input.weaponId, name: input.name, countryCode: input.countryCode, lng: input.lng, lat: input.lat, description: input.description };
 }
 
 // Admin: add one location (placed by clicking the map). Returns its id.
 export async function createLocation(input: SaveLocationInput) {
-  const id = await locationsRepository.insert(await toRow(input));
-  return { id };
+  try {
+    const id = await locationsRepository.insert(await toRow(input));
+    return { id };
+  } catch (err: any) {
+    if (err?.code === 'ER_NO_REFERENCED_ROW_2') throw AppError.badRequest('weapon_id does not exist');
+    throw err;
+  }
 }
 
 // Admin: change one location (moved, renamed, other type…)
 export async function updateLocation(id: number, input: SaveLocationInput) {
-  const changed = await locationsRepository.update(id, await toRow(input));
-  if (changed === 0) throw AppError.notFound('Location not found');
-}
+  let changed: number;
+  try{
+  changed = await locationsRepository.update(id, await toRow(input));
+  }catch(err: any){
+  if (err?.code === 'ER_NO_REFERENCED_ROW_2') throw AppError.badRequest('weapon_id does not exist');
+      throw err;
+    }
+    if (changed === 0) throw AppError.notFound('Location not found');
+  }

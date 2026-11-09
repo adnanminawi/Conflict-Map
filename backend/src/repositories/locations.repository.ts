@@ -5,7 +5,7 @@ import type { MapLocation,LocationRow } from '../types/locations.types';
 // All bases / airports with their type. Static data, so no time filter.
 export async function findAll(): Promise<MapLocation[]> {
   const [rows] = await db.execute<(MapLocation & RowDataPacket)[]>(
-    `SELECT l.id, l.name, l.country_code, l.description,
+    `SELECT l.id, l.name, l.country_code, l.description, l.weapon_id,
             ST_Longitude(l.geom) AS lng, ST_Latitude(l.geom) AS lat,
             t.code AS type_code, t.name AS type_name, t.icon
        FROM locations l
@@ -51,9 +51,9 @@ export async function existsNear(lng: number, lat: number, typeId: number, meter
 // Saves one location. The point is written as 'POINT(lng lat)' (MySQL 8 axis-order trap).
 export async function insert(loc: LocationRow): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO locations (location_type_id, name, country_code, geom, description)
-     VALUES (?, ?, ?, ST_GeomFromText(?, 4326, 'axis-order=long-lat'), ?)`,
-    [loc.typeId, loc.name, loc.countryCode, `POINT(${loc.lng} ${loc.lat})`, loc.description],
+    `INSERT INTO locations (location_type_id, name, country_code, geom, description,weapon_id)
+     VALUES (?, ?, ?, ST_GeomFromText(?, 4326, 'axis-order=long-lat'), ?,?)`,
+    [loc.typeId, loc.name, loc.countryCode, `POINT(${loc.lng} ${loc.lat})`, loc.description,loc.weaponId],
   );
   return result.insertId;
 }
@@ -63,10 +63,10 @@ export async function insert(loc: LocationRow): Promise<number> {
 export async function update(id: number, loc: LocationRow): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
     `UPDATE locations
-        SET location_type_id = ?, name = ?, country_code = ?,
+        SET location_type_id = ?, name = ?, country_code = ?, weapon_id = ?,
             geom = ST_GeomFromText(?, 4326, 'axis-order=long-lat'), description = ?
       WHERE id = ?`,
-    [loc.typeId, loc.name, loc.countryCode, `POINT(${loc.lng} ${loc.lat})`, loc.description, id],
+    [loc.typeId, loc.name, loc.countryCode, loc.weaponId, `POINT(${loc.lng} ${loc.lat})`, loc.description, id],
   );
   return result.affectedRows;
 }

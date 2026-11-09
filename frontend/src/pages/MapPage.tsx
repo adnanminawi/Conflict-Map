@@ -33,6 +33,8 @@ import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config
 import { fetchWeapons } from '../api/weapons'
 import { rangeBounds, setupWeaponLayers, showWeapons, type PlacedWeapon } from '../map/weaponsLayer'
 import WeaponsPanel from '../components/WeaponsPanel'
+import DefencePanel from '../components/Defencepanel'
+import { computeCoverage, coverageBounds, defenceColor as shadeOf, DEFENCE_TYPES, setupDefenceLayers, showCoverages, startRadarSweep, type CoverageShape } from '../map/Defencelayer'
 import NewsPanel from '../components/Newspanel'
 import type { AlertsResponse, MapEvent, MapLayer, MapLocation, Weapon } from '../types'
 
@@ -76,9 +78,17 @@ export default function MapPage() {
   // Is the news box (right side) open? Read when zooming, so the map leaves room for it.
   // A ref, not state: changing it doesn't need to redraw the page.
   const newsOpen = useRef(false)
-  const rightRoom = () => (newsOpen.current ? 360 : 70) // 360 = the news box + the zoom buttons
+  const testModeRef = useRef(false) // while testing, the Air defence box is on the right
+  const rightRoom = () => (newsOpen.current || testModeRef.current ? 360 : 70) // 360 = the right box + the zoom buttons
 
   const [weapons, setWeapons] = useState<Weapon[]>([])
+
+  // "Test the weapon reach" mode: the weapons and air defence boxes show, the news hides
+  const [testMode, setTestMode] = useState(false)
+  testModeRef.current = testMode
+  const [defenceId, setDefenceId] = useState<number | null>(null) // the air defence system whose coverage is shown
+  const [defenceAll, setDefenceAll] = useState(false) // "Show all together": every system of the country at once
+  const [coverageLoading, setCoverageLoading] = useState(false)
 
   const [reachOn, setReachOn] = useState(false) // "reach from the border" of the selected country
   const [reachLoading, setReachLoading] = useState(false)
@@ -121,6 +131,7 @@ export default function MapPage() {
       setupAlertLayers(map) // after the shapes, so alerts are drawn on top
       setupReachLayers(map)
       setupWeaponLayers(map)
+      setupDefenceLayers(map) // under the bases, so the site icons stay on top of the coverage
       await setupLocationLayers(map) // bases and events last, so they're drawn on top
       setupEventLayers(map) // events above bases
       if (mapRef.current === map) setMap(map)
@@ -183,19 +194,30 @@ export default function MapPage() {
   // Each part is drawn again when its data, the switches or the country tab change.
   // The "return () => ..." removes the old markers before drawing the new ones.
 
+  // Weapons split in two: attack (Weapons box) and air defence + radars (Air defence box)
+  const isDefence = (w: Weapon) => DEFENCE_TYPES.includes(w.type_code)
+  const attackWeapons = weapons.filter((w) => !isDefence(w))
+  const defenceWeapons = weapons.filter(isDefence)
+  // Blue by range (light = short, dark = long), radars grey. The same color in the box and on the map.
+  const defenceColor = (w: Weapon) => shadeOf(w, defenceWeapons)
+  // How many sites on the map have each system
+  const sitesOf = (w: Weapon) => locations.filter((l) => l.weapon_id === w.id).length
+
   // Bases and airports: only the switched-on types, only the selected country
   useEffect(() => {
     if (!map) return
     const shown = locations.filter(
       (l) => l.id !== hiddenItem.location && visible[l.type_code as Category] !== false && inCountry(l.country_code, country),
     )
-    showLocations(map, shown) // the map groups them into clusters by itself
-  }, [map, locations, visible, country, hiddenItem.location])
+    // Air defence sites show their system in the popup, e.g. "Iron Dome · 70 km"
+    const systems = new Map(defenceWeapons.map((w) => [w.id, `${w.name} · ${w.range_km.toLocaleString()} km`]))
+    showLocations(map, shown, systems) // the map groups them into clusters by itself
+  }, [map, locations, visible, country, hiddenItem.location, weapons])
 
   // Reach from the border of the selected country: one ring per distance its weapons reach
   useEffect(() => {
     if (!map || !reachOn || country === ALL) return
-    const kms = weapons.filter((w) => w.country_code === country).map((w) => w.range_km)
+    const kms = attackWeapons.filter((w) => w.country_code === country).map((w) => w.range_km)
     let stop = () => {}
     let cancelled = false
 
@@ -252,6 +274,58 @@ export default function MapPage() {
     showAlerts(map, { ...alerts, alerts: alerts.alerts.filter((a) => types.includes(a.type)) })
   }, [map, alerts, visible, country])
 
+  // Air defence coverage: one chosen system, or all the country's systems together.
+  // Each system's range around all its sites, merged into one shape.
+  useEffect(() => {
+    if (!map) return
+    const chosen = defenceAll
+      ? defenceWeapons.filter((w) => w.country_code === country)
+      : defenceWeapons.filter((w) => w.id === defenceId)
+    if (chosen.length === 0) {
+      showCoverages(map, [])
+      return
+    }
+    let cancelled = false // a late answer for an old choice is ignored
+    setCoverageLoading(true)
+
+    // Radars also get the radar look: rings and a turning beam around each radar site
+    const radars = chosen
+      .filter((w) => w.type_code === 'radar')
+      .flatMap((w) =>
+        locations
+          .filter((l) => l.weapon_id === w.id)
+          .map((l) => ({ center: [l.lng, l.lat] as [number, number], km: w.range_km, color: defenceColor(w) })),
+      )
+    const stopSweep = startRadarSweep(map, radars)
+
+    Promise.all(
+      // Biggest range first: drawn underneath, so the smaller ones stay visible on top
+      [...chosen]
+        .sort((a, b) => b.range_km - a.range_km)
+        .map(async (system): Promise<CoverageShape | null> => {
+          const sites = locations.filter((l) => l.weapon_id === system.id).map((l) => [l.lng, l.lat] as [number, number])
+          const coverage = await computeCoverage(sites, system.range_km)
+          const label = `${system.name} · ${system.range_km.toLocaleString()} km`
+          return coverage && { coverage, color: defenceColor(system), label, dashed: system.type_code === 'radar' }
+        }),
+    )
+      .then((results) => {
+        if (cancelled) return
+        const shapes = results.filter((r): r is CoverageShape => r !== null)
+        showCoverages(map, shapes)
+        if (shapes.length > 0) {
+          const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 290, right: rightRoom() } : 30
+          map.fitBounds(coverageBounds(shapes.map((s) => s.coverage)), { padding, duration: 800 })
+        }
+      })
+      .catch((err) => console.error('Could not draw the coverage', err))
+      .finally(() => !cancelled && setCoverageLoading(false))
+    return () => {
+      cancelled = true
+      stopSweep()
+    }
+  }, [map, defenceId, defenceAll, country, locations, weapons])
+
   // Placed weapons: the newest one's ring grows once
   useEffect(() => {
     if (!map) return
@@ -302,6 +376,8 @@ export default function MapPage() {
     setCountry(code)
     setReachOn(false) // the reach belongs to one country
     setReachError('')
+    setDefenceId(null) // so does the air defence coverage
+    setDefenceAll(false)
     setHiddenSides([]) // each country starts with all its sides shown
     if (!map) return
     if (code === ALL) {
@@ -312,6 +388,17 @@ export default function MapPage() {
     // Leave room for the tabs (top), the box (left) and the zoom buttons (right). Phones: small margins.
     const padding = window.innerWidth > 600 ? { top: 90, bottom: 40, left: 290, right: rightRoom() } : 40
     if (box) map.fitBounds(box, { padding, maxZoom: 9 })
+  }
+
+  // Leave "Test the weapon reach": clear everything it drew, the news comes back
+  function closeTestMode() {
+    setTestMode(false)
+    setPlacing(null)
+    setPlaced([])
+    setReachOn(false)
+    setReachError('')
+    setDefenceId(null)
+    setDefenceAll(false)
   }
 
   function toggle(category: Category) {
@@ -329,6 +416,36 @@ export default function MapPage() {
 
   const countries = findCountries(locations, events, layers)
 
+  // Phones have no room on the right: the Air defence box stays on the left there
+  const narrow = window.innerWidth <= 600
+  const defencePanel = (
+        <DefencePanel
+            systems={defenceWeapons.filter((w) => inCountry(w.country_code, country))}
+            colorOf={defenceColor}
+            sitesOf={sitesOf}
+            selectedId={defenceId}
+            onSelect={(id) => {
+              setDefenceAll(false) // one system: leave "all together"
+              setDefenceId(id)
+            }}
+            allOn={defenceAll}
+            onToggleAll={() => {
+              setDefenceId(null)
+              setDefenceAll((on) => !on)
+            }}
+            loading={coverageLoading}
+            placed={placed.filter((p) => isDefence(p.weapon))}
+            placing={placing && isDefence(placing) ? placing : null}
+            // The placed ring takes the system's color (the weapons layer colors rings by side_color)
+            onPlace={(w) => setPlacing({ ...w, side_color: defenceColor(w) })}
+            onCancelPlacing={() => setPlacing(null)}
+            onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
+            onClearAll={() => setPlaced((list) => list.filter((p) => !isDefence(p.weapon)))}
+            showCountries={country === ALL}
+            onSelectCountry={selectCountry}
+          />
+  )
+
   return (
     <>
       <div ref={containerRef} className="map" />
@@ -339,20 +456,45 @@ export default function MapPage() {
           They share the height of the screen, so they never cover each other. */}
       <div className="map-side">
         {status && <div className="map-panel status">{status}</div>}
-        <WeaponsPanel
-          weapons={weapons.filter((w) => inCountry(w.country_code, country))}
-          placed={placed}
-          placing={placing}
-          onPlace={setPlacing}
-          onCancelPlacing={() => setPlacing(null)}
-          onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
-          onClearAll={() => setPlaced([])}
-          reach={country === ALL ? null : { countryName: countryName(country), on: reachOn, loading: reachLoading, error: reachError }}
-          onToggleReach={() => setReachOn((on) => !on)}
-          onHoverWeapon={(km) => map && reachOn && highlightReach(map, km)}
-          showCountries={country === ALL}
-          onSelectCountry={selectCountry}
-        />
+        {testMode ? (
+          <>
+            {/* Test mode: a bar to leave it, then the two boxes */}
+            <div className="map-panel test-bar">
+              <span>Testing weapon reach</span>
+              <button type="button" className="test-close" onClick={closeTestMode} aria-label="Close the weapon reach test">
+                ×
+              </button>
+            </div>
+            <WeaponsPanel
+              weapons={attackWeapons.filter((w) => inCountry(w.country_code, country))}
+              placed={placed.filter((p) => !isDefence(p.weapon))}
+              placing={placing && !isDefence(placing) ? placing : null}
+              onPlace={setPlacing}
+              onCancelPlacing={() => setPlacing(null)}
+              onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
+              onClearAll={() => setPlaced((list) => list.filter((p) => isDefence(p.weapon)))}
+              reach={country === ALL ? null : { countryName: countryName(country), on: reachOn, loading: reachLoading, error: reachError }}
+              onToggleReach={() => setReachOn((on) => !on)}
+              onHoverWeapon={(km) => map && reachOn && highlightReach(map, km)}
+              showCountries={country === ALL}
+              onSelectCountry={selectCountry}
+            />
+            {narrow && defencePanel /* phones: no room on the right, it stays under the weapons */}
+          </>
+        ) : (
+          <div className="map-panel test-start">
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => {
+                newsOpen.current = false // the news hides: the map no longer leaves room for it
+                setTestMode(true)
+              }}
+            >
+              Test the weapon reach
+            </button>
+          </div>
+        )}
         <MapLegend
           visible={visible}
           onToggle={toggle}
@@ -360,7 +502,7 @@ export default function MapPage() {
           sides={sidesInCountry(layers, country)}
           hiddenSides={hiddenSides}
           onToggleSide={toggleSide}
-          autoFold={country !== ALL && weapons.some((w) => w.country_code === country)}
+          autoFold={testMode && narrow} // phones: the two boxes need the room
         />
       </div>
 
@@ -372,6 +514,7 @@ export default function MapPage() {
               map={map}
               locations={locations}
               events={events}
+              systems={defenceWeapons}
               defaultCountry={country === ALL ? '' : country}
               disabled={editingName !== null}
               closeSignal={closeItemEditor}
@@ -389,7 +532,8 @@ export default function MapPage() {
             {!itemEditorOn && <MapEditor map={map} layers={layers} onEditingChange={setEditingName} onSaved={loadLayers} />}
           </Suspense>
         )}
-        <NewsPanel onOpenChange={(open) => (newsOpen.current = open)} />
+        {/* While testing the weapon reach: the Air defence box takes the news' place */}
+        {testMode ? !narrow && defencePanel : <NewsPanel onOpenChange={(open) => (newsOpen.current = open)} />}
       </div>
     </>
   )
