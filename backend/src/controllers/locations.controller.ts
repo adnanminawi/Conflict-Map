@@ -98,6 +98,12 @@ function readLocationBody(body: any): SaveLocationInput {
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (name.length < 1 || name.length > 200) throw AppError.badRequest('name is required (max 200 characters)');
 
+  const weaponId = body.weapon_id == null ? null : Number(body.weapon_id);
+  if (weaponId !== null && (!Number.isInteger(weaponId) || weaponId < 1)) {
+    throw AppError.badRequest('weapon_id must be a weapon id or null');
+  }
+
+
   const typeCode = typeof body.type === 'string' ? body.type.trim() : '';
   if (!typeCode) throw AppError.badRequest('type is required, e.g. "air_defence"');
 

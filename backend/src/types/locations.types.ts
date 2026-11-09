@@ -1,6 +1,7 @@
 // One base / airport as returned to the map.
 export interface MapLocation {
   id: number;
+  weapon_id: number | null;
   name: string;
   country_code: string;
   description: string | null;
@@ -27,6 +28,7 @@ export interface ImportSummary {
 // What the admin sends to add or change one location on the map
 export interface SaveLocationInput {
   typeCode: string; // e.g. "air_defence"
+  weaponId: number | null;
   name: string;
   countryCode: string; // 2 letters, e.g. "IL"
   description: string | null;
@@ -35,6 +37,7 @@ export interface SaveLocationInput {
 }
 export interface LocationRow {
   typeId: number;
+  weaponId: number | null;
   name: string;
   countryCode: string;
   lng: number;
