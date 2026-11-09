@@ -1,17 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 import type * as maplibregl from 'maplibre-gl'
-import { createEvent, createLocation, deleteEvent, deleteLocation, fetchEventTypes, fetchLocationTypes, updateEvent, updateLocation,} from '../api/admin'
+import {
+  createEvent,
+  createLocation,
+  deleteEvent,
+  deleteLocation,
+  fetchEventTypes,
+  fetchLocationTypes,
+  updateEvent,
+  updateLocation,
+} from '../api/admin'
 import { getErrorMessage, isUnauthorized } from '../api/client'
 import { arePopupsEnabled, enableShapePopups } from '../map/shapesLayer'
 import { setPickHandler, type PickKind } from '../map/pickMode'
 import { enableDrag, showEditItem } from '../map/Edititemlayer'
 import CountrySelect from './CountrySelect'
-import type { EventType, LocationType, MapEvent, MapLocation } from '../types'
+import type { EventType, LocationType, MapEvent, MapLocation, Weapon } from '../types'
 
 interface Props {
   map: maplibregl.Map
   locations: MapLocation[]
   events: MapEvent[]
+  systems: Weapon[] // air defence systems and radars, for the System dropdown of those sites
   defaultCountry: string // the open country tab, for new items ('' = none)
   disabled: boolean // the frontline editor is in use
   closeSignal: number // goes up when something else needs map clicks (ruler, placing a weapon): stop editing
@@ -28,6 +38,7 @@ interface Draft {
   lat: number
   name: string // a base's name / an event's title
   typeCode: string // bases: 'air_defence'…
+  weaponId: number | null // air defence / radar sites: the system there
   eventTypeId: number // events
   country: string
   description: string
@@ -44,7 +55,7 @@ function toLocalInput(iso: string): string {
 }
 
 // The admin's box for bases and events on the map: click one to edit it, drag it to move it, Save.
-export default function MapItemEditor({ map, locations, events, defaultCountry, disabled, closeSignal, onActiveChange, onHide, onSaved }: Props) {
+export default function MapItemEditor({ map, locations, events, systems, defaultCountry, disabled, closeSignal, onActiveChange, onHide, onSaved }: Props) {
   const [active, setActive] = useState(false)
   const [mode, setMode] = useState<Mode>('idle')
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -98,14 +109,14 @@ export default function MapItemEditor({ map, locations, events, defaultCountry, 
         const l = locations.find((x) => x.id === id)
         if (!l) return
         open({
-          kind, id, lng: l.lng, lat: l.lat, name: l.name, typeCode: l.type_code, eventTypeId: 0,
+          kind, id, lng: l.lng, lat: l.lat, name: l.name, typeCode: l.type_code, weaponId: l.weapon_id, eventTypeId: 0,
           country: l.country_code, description: l.description ?? '', occurredAt: '',
         })
       } else {
         const e = events.find((x) => x.id === id)
         if (!e) return
         open({
-          kind, id, lng: e.lng, lat: e.lat, name: e.title, typeCode: '', eventTypeId: e.event_type_id,
+          kind, id, lng: e.lng, lat: e.lat, name: e.title, typeCode: '', weaponId: null, eventTypeId: e.event_type_id,
           country: e.country_code ?? '', description: e.description ?? '', occurredAt: toLocalInput(e.occurred_at),
         })
       }
@@ -148,7 +159,7 @@ export default function MapItemEditor({ map, locations, events, defaultCountry, 
       const kind: PickKind = mode === 'placing-location' ? 'location' : 'event'
       open({
         kind, id: null, lng: e.lngLat.lng, lat: e.lngLat.lat, name: '',
-        typeCode: locationTypes[0]?.code ?? '', eventTypeId: eventTypes[0]?.id ?? 0,
+        typeCode: locationTypes[0]?.code ?? '', weaponId: null, eventTypeId: eventTypes[0]?.id ?? 0,
         country: defaultCountry, description: '', occurredAt: toLocalInput(new Date().toISOString()),
       })
     }
@@ -208,6 +219,7 @@ export default function MapItemEditor({ map, locations, events, defaultCountry, 
         const input = {
           type: draft.typeCode, name: draft.name.trim(), country_code: draft.country,
           description: draft.description.trim() || null, lat: draft.lat, lng: draft.lng,
+          weapon_id: draft.weaponId,
         }
         if (draft.id === null) await createLocation(input)
         else await updateLocation(draft.id, input)
@@ -278,6 +290,15 @@ export default function MapItemEditor({ map, locations, events, defaultCountry, 
 
   const update = (change: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...change } : d))
 
+  // The systems that fit this site's type (an air defence site → air defence systems; a radar site → radars)
+  const fittingSystems = draft ? systems.filter((w) => w.type_code === draft.typeCode).sort((a, b) => a.name.localeCompare(b.name)) : []
+
+  // A new type: keep the system only if it still fits, otherwise clear it (the backend would refuse it)
+  function changeType(typeCode: string) {
+    const keep = draft?.weaponId != null && systems.some((w) => w.id === draft.weaponId && w.type_code === typeCode)
+    update({ typeCode, weaponId: keep ? draft!.weaponId : null })
+  }
+
   return (
     <div className="map-panel editor">
       <div className="editor-title">Bases &amp; events</div>
@@ -328,7 +349,7 @@ export default function MapItemEditor({ map, locations, events, defaultCountry, 
           <label>
             Type
             {draft.kind === 'location' ? (
-              <select value={draft.typeCode} onChange={(e) => update({ typeCode: e.target.value })}>
+              <select value={draft.typeCode} onChange={(e) => changeType(e.target.value)}>
                 {locationTypes.map((t) => (
                   <option key={t.code} value={t.code}>
                     {t.name}
@@ -345,6 +366,24 @@ export default function MapItemEditor({ map, locations, events, defaultCountry, 
               </select>
             )}
           </label>
+
+          {/* Only for air defence and radar sites: which system is here (it decides the coverage ring) */}
+          {draft.kind === 'location' && (draft.typeCode === 'air_defence' || draft.typeCode === 'radar') && (
+            <label>
+              System
+              <select
+                value={draft.weaponId ?? ''}
+                onChange={(e) => update({ weaponId: e.target.value === '' ? null : Number(e.target.value) })}
+              >
+                <option value="">Not known</option>
+                {fittingSystems.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name} ({w.range_km.toLocaleString()} km)
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {draft.kind === 'event' && (
             <label>
