@@ -36,6 +36,22 @@ export async function createEvent(req: Request, res: Response, next: NextFunctio
   }
 }
 
+// PUT /api/events/:id — change an event (admin only). Same body as creating one; the status is not changed here,
+// and without location_id the target base stays as it is.
+export async function updateEvent(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) throw AppError.badRequest('Invalid event id');
+    const { status: _ignored, ...input } = readCreateEventBody(req.body);
+    // No location_id in the body (the map editor) → keep the event's target base as it is
+    const keepTarget = req.body.location_id === undefined;
+    await eventsService.updateEvent(id, input, keepTarget);
+    res.json({ id });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/events/admin?status=unverified  (admin only; no status = all)
 export async function getAdminEvents(req: Request, res: Response, next: NextFunction) {
   try {
@@ -125,6 +141,7 @@ function readCreateEventBody(body: any): CreateEventInput {
       throw AppError.badRequest('location_id must be a positive whole number');
     }
   }
+
   const countryCode = typeof body.country_code === 'string' ? body.country_code.trim().toUpperCase() : '';
   if (!/^[A-Z]{2}$/.test(countryCode)) {
     throw AppError.badRequest('country_code must be a 2-letter code, e.g. IR');
