@@ -23,6 +23,8 @@ export interface ImportSummary {
   autoNamed: number; // had no real name, got one like "Military base EG-001"
   byType: Record<string, number>; // saved per type name, e.g. { "Air defence": 94, "Radar": 18 }
   guessed: number; // how many got their type from their name / folder (the rest: the chosen type)
+  linked: number; // air defence / radar sites linked to their system by name (e.g. "ID" → Iron Dome)
+  noSystem: number; // air defence / radar sites saved with no system (no name matched)
 }
 
 // What the admin sends to add or change one location on the map

@@ -1,4 +1,3 @@
-
 // Guesses a site's type from its words (name, then KML folder), like a GIS "attribute rule".
 // Returns a location_types code, or null when no rule matches (the import then uses the admin's chosen type).
 // Checked in order: the first rule that matches wins. Add words here when a new file uses other names.
@@ -19,4 +18,19 @@ const RULES: { type: string; words: RegExp }[] = [
 export function classifySite(text: string | null): string | null {
   if (!text) return null;
   return RULES.find((rule) => rule.words.test(text.trim()))?.type ?? null;
+}
+
+// Short names some KML files use for a system: the pin's name → the system's name in the weapons table.
+// Add a line here when a new file uses another short name.
+const SYSTEM_ALIASES: Record<string, string> = {
+  id: 'Iron Dome',
+  ds: "David's Sling",
+  'arrow-2/3': 'Arrow 2',
+};
+
+// The system a pin's name stands for (an alias, or the name itself), in lower case for comparing.
+// "ID" → "iron dome", "THAAD" → "thaad"
+export function systemNameOf(pinName: string): string {
+  const key = pinName.trim().toLowerCase();
+  return (SYSTEM_ALIASES[key] ?? key).toLowerCase();
 }

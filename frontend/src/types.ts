@@ -73,6 +73,8 @@ export interface ImportSummary {
   saved: number
   duplicates: number
   notPoints: number
+  linked: number // air defence / radar sites linked to their system by name (e.g. "ID" → Iron Dome)
+  noSystem: number // air defence / radar sites with no system (no name matched)
   invalid: number
   autoNamed: number
   byType: Record<string, number> // saved per type name, e.g. { "Air defence": 103, "Radar": 17 }
@@ -245,11 +247,11 @@ export interface AdminNewsItem extends NewsItem {
   status: NewsStatus
 }
 export interface LocationInput {
-     type: string // a location type code, e.g. 'air_defence'
-     weapon_id: number | null
-     name: string
-     country_code: string
-     description: string | null
-     lat: number
-     lng: number
-   }
+  type: string // a location type code, e.g. 'air_defence'
+  weapon_id: number | null
+  name: string
+  country_code: string
+  description: string | null
+  lat: number
+  lng: number
+}

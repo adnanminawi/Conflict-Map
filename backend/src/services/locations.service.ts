@@ -1,10 +1,11 @@
 import * as locationsRepository from '../repositories/locations.repository';
-import type { SaveLocationInput, ImportSummary,LocationRow } from '../types/locations.types';
+import * as weaponsRepository from '../repositories/weapons.repository';
+import type { ImportSummary, LocationRow, SaveLocationInput } from '../types/locations.types';
 import { AppError } from '../utils/AppError';
 import { parseKml } from '../utils/kml';
+import { classifySite, systemNameOf } from '../utils/classifySite';
 import { checkCountry } from './countries.service';
-import * as weaponsRepository from '../repositories/weapons.repository';
-import { classifySite } from '../utils/classifysite';
+
 export async function getLocations() {
   return locationsRepository.findAll();
 }
@@ -62,8 +63,18 @@ export async function importKml(
     autoNamed: 0,
     byType: {},
     guessed: 0,
+    linked: 0,
+    noSystem: 0,
   };
   const autoNamedPerType: Record<string, number> = {}; // for names like "Radar IL-003"
+
+  // This country's systems, by type and name: "air_defence:iron dome" → its weapon id.
+  // A pin is linked only to a system of its own type (an airport never gets Iron Dome).
+  const systems = new Map(
+    (await weaponsRepository.findAll())
+      .filter((w) => w.country_code === country)
+      .map((w) => [`${w.type_code}:${w.name.toLowerCase()}`, w.id]),
+  );
 
   // The pins accepted so far from this file. A preview saves nothing, so the database can't see
   // two close pins of the same file: this list does, so the preview and the import give the same numbers.
@@ -93,12 +104,17 @@ export async function importKml(
       name = `${prettyType(code)} ${country}-${String(autoNamedPerType[code]).padStart(3, '0')}`;
     }
 
+    // An air defence / radar pin named after a known system ("ID", "THAAD"…) → linked to it
+    const weaponId = point.name ? systems.get(`${code}:${systemNameOf(point.name)}`) ?? null : null;
+    if (weaponId !== null) summary.linked++;
+    else if (code === 'air_defence' || code === 'radar') summary.noSystem++;
+
     if (!dryRun) {
       await locationsRepository.insert({
         typeId: type.id,
         name,
         countryCode: country,
-        weaponId : null,
+        weaponId,
         lng: point.lng,
         lat: point.lat,
         description: point.description,
@@ -127,7 +143,7 @@ export async function deleteLocations(ids: number[]) {
 }
 
 // Checks the type and country, and turns the type code into its id
-  async function toRow(input: SaveLocationInput): Promise<LocationRow> {
+async function toRow(input: SaveLocationInput): Promise<LocationRow> {
   const typeId = await locationsRepository.findTypeIdByCode(input.typeCode);
   if (typeId === null) throw AppError.badRequest(`Unknown location type "${input.typeCode}"`);
   await checkCountry(input.countryCode);
@@ -147,23 +163,12 @@ export async function deleteLocations(ids: number[]) {
 
 // Admin: add one location (placed by clicking the map). Returns its id.
 export async function createLocation(input: SaveLocationInput) {
-  try {
-    const id = await locationsRepository.insert(await toRow(input));
-    return { id };
-  } catch (err: any) {
-    if (err?.code === 'ER_NO_REFERENCED_ROW_2') throw AppError.badRequest('weapon_id does not exist');
-    throw err;
-  }
+  const id = await locationsRepository.insert(await toRow(input));
+  return { id };
 }
 
 // Admin: change one location (moved, renamed, other type…)
 export async function updateLocation(id: number, input: SaveLocationInput) {
-  let changed: number;
-  try{
-  changed = await locationsRepository.update(id, await toRow(input));
-  }catch(err: any){
-  if (err?.code === 'ER_NO_REFERENCED_ROW_2') throw AppError.badRequest('weapon_id does not exist');
-      throw err;
-    }
-    if (changed === 0) throw AppError.notFound('Location not found');
-  }
+  const changed = await locationsRepository.update(id, await toRow(input));
+  if (changed === 0) throw AppError.notFound('Location not found');
+}
