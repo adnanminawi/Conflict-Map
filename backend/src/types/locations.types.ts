@@ -23,3 +23,21 @@ export interface ImportSummary {
   byType: Record<string, number>; // saved per type name, e.g. { "Air defence": 94, "Radar": 18 }
   guessed: number; // how many got their type from their name / folder (the rest: the chosen type)
 }
+
+// What the admin sends to add or change one location on the map
+export interface SaveLocationInput {
+  typeCode: string; // e.g. "air_defence"
+  name: string;
+  countryCode: string; // 2 letters, e.g. "IL"
+  description: string | null;
+  lat: number;
+  lng: number;
+}
+export interface LocationRow {
+  typeId: number;
+  name: string;
+  countryCode: string;
+  lng: number;
+  lat: number;
+  description: string | null;
+}

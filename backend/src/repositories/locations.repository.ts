@@ -1,6 +1,6 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { db } from '../config/db';
-import type { MapLocation } from '../types/locations.types';
+import type { MapLocation,LocationRow } from '../types/locations.types';
 
 // All bases / airports with their type. Static data, so no time filter.
 export async function findAll(): Promise<MapLocation[]> {
@@ -49,19 +49,26 @@ export async function existsNear(lng: number, lat: number, typeId: number, meter
 }
 
 // Saves one location. The point is written as 'POINT(lng lat)' (MySQL 8 axis-order trap).
-export async function insert(loc: {
-  typeId: number;
-  name: string;
-  countryCode: string;
-  lng: number;
-  lat: number;
-  description: string | null;
-}): Promise<void> {
-  await db.execute(
+export async function insert(loc: LocationRow): Promise<number> {
+  const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO locations (location_type_id, name, country_code, geom, description)
      VALUES (?, ?, ?, ST_GeomFromText(?, 4326, 'axis-order=long-lat'), ?)`,
     [loc.typeId, loc.name, loc.countryCode, `POINT(${loc.lng} ${loc.lat})`, loc.description],
   );
+  return result.insertId;
+}
+
+// Changes everything about one location (the admin's edit box on the map).
+// Returns how many rows matched (0 = no location with that id).
+export async function update(id: number, loc: LocationRow): Promise<number> {
+  const [result] = await db.execute<ResultSetHeader>(
+    `UPDATE locations
+        SET location_type_id = ?, name = ?, country_code = ?,
+            geom = ST_GeomFromText(?, 4326, 'axis-order=long-lat'), description = ?
+      WHERE id = ?`,
+    [loc.typeId, loc.name, loc.countryCode, `POINT(${loc.lng} ${loc.lat})`, loc.description, id],
+  );
+  return result.affectedRows;
 }
 
 // Returns how many rows were deleted (0 = no location with that id)
