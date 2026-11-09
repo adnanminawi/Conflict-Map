@@ -4,7 +4,7 @@ import { AppError } from '../utils/AppError';
 import { parseKml } from '../utils/kml';
 import { checkCountry } from './countries.service';
 import * as weaponsRepository from '../repositories/weapons.repository';
-import { classifySite } from '../utils/classifySite';
+import { classifySite } from '../utils/classifysite';
 export async function getLocations() {
   return locationsRepository.findAll();
 }
