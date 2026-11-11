@@ -2,6 +2,7 @@ import * as eventsRepository from '../repositories/events.repository';
 import { checkCountry } from './countries.service';
 import type { CreateEventInput, EventStatus } from '../types/events.types';
 import { AppError } from '../utils/AppError';
+import { FOREIGN_KEY_VIOLATION } from '../config/db';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -41,11 +42,11 @@ export async function updateEvent(id: number, input: Omit<CreateEventInput, 'sta
 
 // A wrong id in a link (type, target, admin) → a clear 400 instead of a database error
 function linkError(err: any) {
-  if (err?.code === 'ER_NO_REFERENCED_ROW_2') {
-    const msg: string = err.sqlMessage ?? '';
-    if (msg.includes('fk_events_type')) return AppError.badRequest('event_type_id does not exist');
-    if (msg.includes('fk_events_location')) return AppError.badRequest('location_id does not exist');
-    if (msg.includes('fk_events_created_by')) return AppError.badRequest('admin does not exist');
+  if (err?.code === FOREIGN_KEY_VIOLATION) {
+    const constraint: string = err.constraint ?? ''; // Postgres names the broken link, e.g. "fk_events_type"
+    if (constraint === 'fk_events_type') return AppError.badRequest('event_type_id does not exist');
+    if (constraint === 'fk_events_location') return AppError.badRequest('location_id does not exist');
+    if (constraint === 'fk_events_created_by') return AppError.badRequest('admin does not exist');
     return AppError.badRequest('A linked record does not exist');
   }
   return err;

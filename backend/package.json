@@ -11,7 +11,8 @@
     "create-admin": "tsx scripts/createAdmin.ts",
     "import:alert-areas": "tsx scripts/importAlertAreas.ts",
     "telegram:login": "tsx scripts/telegramLogin.ts",
-    "test:alerts": "tsx scripts/testAlertParser.ts"
+    "test:alerts": "tsx scripts/testAlertParser.ts",
+    "copy:mysql-to-postgres": "tsx scripts/copyMysqlToPostgres.ts"
   },
   "dependencies": {
     "@tmcw/togeojson": "^5.8.1",
@@ -24,7 +25,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
-    "mysql2": "^3.11.3",
+    "pg": "^8.23.1",
     "pikud-haoref-api": "^5.0.4",
     "rss-parser": "^3.13.0",
     "telegram": "^2.26.22"
@@ -37,6 +38,8 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.3.0",
     "@types/node": "^20.16.0",
+    "@types/pg": "^8.23.1",
+    "mysql2": "^3.24.6",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"
   }

@@ -25,12 +25,13 @@ async function main() {
     if (city.id === 0) continue; // the first item is "Select all", not a place
 
     const outline = toOutline(outlines[String(city.id)]);
-    await db.execute(
+    // Insert, or update the place if its id is already there (MySQL had ON DUPLICATE KEY UPDATE)
+    await db.query(
       `INSERT INTO alert_areas (id, name_he, name_en, name_ru, name_ar, lat, lng, polygon)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?) AS new
-       ON DUPLICATE KEY UPDATE
-         name_he = new.name_he, name_en = new.name_en, name_ru = new.name_ru, name_ar = new.name_ar,
-         lat = new.lat, lng = new.lng, polygon = new.polygon`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO UPDATE SET
+         name_he = EXCLUDED.name_he, name_en = EXCLUDED.name_en, name_ru = EXCLUDED.name_ru, name_ar = EXCLUDED.name_ar,
+         lat = EXCLUDED.lat, lng = EXCLUDED.lng, polygon = EXCLUDED.polygon`,
       [
         city.id,
         city.name,
