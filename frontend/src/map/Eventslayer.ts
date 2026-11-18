@@ -8,7 +8,6 @@ import { arePopupsEnabled } from './shapesLayer'
 import { getPickHandler } from './pickMode'
 
 const DEFAULT_COLOR = '#E53935' // events without a type color
-const CLUSTER_UNTIL_ZOOM = 8 // from zoom 9, every event shows on its own
 
 // The events on the map now, by id, so a click can find the full event for its popup
 let shown = new Map<number, MapEvent>()
@@ -67,9 +66,7 @@ export function setupEventLayers(map: maplibregl.Map) {
   map.addSource('events', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
-    cluster: true,
-    clusterMaxZoom: CLUSTER_UNTIL_ZOOM,
-    clusterRadius: 45,
+    cluster: false,
   })
 
   // 3. Clusters: red circles (bases use dark ones), bigger when they hold more events

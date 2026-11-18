@@ -27,6 +27,7 @@ import {
 } from '../map/filters'
 import MapLegend from '../components/MapLegend'
 import { MeasureControl } from '../map/Measuretool'
+import { ClusterControl } from '../map/clusterControl'
 import CountryTabs from '../components/CountryTabs'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config'
@@ -116,6 +117,7 @@ export default function MapPage() {
       zoom: START_ZOOM,
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
+    map.addControl(new ClusterControl(), 'top-right') // under the ruler: group nearby bases and events
     // Under the zoom buttons. Starting to measure cancels placing a weapon (both use map clicks).
     const measure = new MeasureControl(() => {
       setPlacing(null)
@@ -218,7 +220,7 @@ export default function MapPage() {
   useEffect(() => {
     if (!map || !reachOn || country === ALL) return
     const kms = attackWeapons.filter((w) => w.country_code === country).map((w) => w.range_km)
-    let stop = () => {}
+    let stop = () => { }
     let cancelled = false
 
     setReachLoading(true)
@@ -419,31 +421,31 @@ export default function MapPage() {
   // Phones have no room on the right: the Air defence box stays on the left there
   const narrow = window.innerWidth <= 600
   const defencePanel = (
-        <DefencePanel
-            systems={defenceWeapons.filter((w) => inCountry(w.country_code, country))}
-            colorOf={defenceColor}
-            sitesOf={sitesOf}
-            selectedId={defenceId}
-            onSelect={(id) => {
-              setDefenceAll(false) // one system: leave "all together"
-              setDefenceId(id)
-            }}
-            allOn={defenceAll}
-            onToggleAll={() => {
-              setDefenceId(null)
-              setDefenceAll((on) => !on)
-            }}
-            loading={coverageLoading}
-            placed={placed.filter((p) => isDefence(p.weapon))}
-            placing={placing && isDefence(placing) ? placing : null}
-            // The placed ring takes the system's color (the weapons layer colors rings by side_color)
-            onPlace={(w) => setPlacing({ ...w, side_color: defenceColor(w) })}
-            onCancelPlacing={() => setPlacing(null)}
-            onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
-            onClearAll={() => setPlaced((list) => list.filter((p) => !isDefence(p.weapon)))}
-            showCountries={country === ALL}
-            onSelectCountry={selectCountry}
-          />
+    <DefencePanel
+      systems={defenceWeapons.filter((w) => inCountry(w.country_code, country))}
+      colorOf={defenceColor}
+      sitesOf={sitesOf}
+      selectedId={defenceId}
+      onSelect={(id) => {
+        setDefenceAll(false) // one system: leave "all together"
+        setDefenceId(id)
+      }}
+      allOn={defenceAll}
+      onToggleAll={() => {
+        setDefenceId(null)
+        setDefenceAll((on) => !on)
+      }}
+      loading={coverageLoading}
+      placed={placed.filter((p) => isDefence(p.weapon))}
+      placing={placing && isDefence(placing) ? placing : null}
+      // The placed ring takes the system's color (the weapons layer colors rings by side_color)
+      onPlace={(w) => setPlacing({ ...w, side_color: defenceColor(w) })}
+      onCancelPlacing={() => setPlacing(null)}
+      onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
+      onClearAll={() => setPlaced((list) => list.filter((p) => !isDefence(p.weapon)))}
+      showCountries={country === ALL}
+      onSelectCountry={selectCountry}
+    />
   )
 
   return (
