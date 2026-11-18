@@ -25,8 +25,6 @@ const ICONS: Record<string, string> = {
 // Clickable layers. shapesLayer.ts and alertsLayer.ts skip clicks on these, so a click on a base doesn't also open a frontline's popup.
 const LOCATION_LAYERS = ['locations-clusters', 'locations-icons']
 
-const CLUSTER_UNTIL_ZOOM = 8 // from zoom 9, every base shows on its own
-const CLUSTER_RADIUS = 45 // px: bases closer than this on screen merge
 
 export async function setupLocationLayers(map: maplibregl.Map) {
   // 1. The 3 icons (128 px pictures, shown smaller by icon-size below)
@@ -36,12 +34,10 @@ export async function setupLocationLayers(map: maplibregl.Map) {
   }
 
   // 2. The data, with clustering on
-  map.addSource('locations', {
+   map.addSource('locations', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
-    cluster: true,
-    clusterMaxZoom: CLUSTER_UNTIL_ZOOM,
-    clusterRadius: CLUSTER_RADIUS,
+    cluster: false,
   })
 
   // 3. Clusters: a circle, bigger when it holds more bases
@@ -81,7 +77,7 @@ export async function setupLocationLayers(map: maplibregl.Map) {
     filter: ['!', ['has', 'point_count']],
     layout: {
       'icon-image': ['concat', 'loc-', ['get', 'type']],
-      'icon-size': ['interpolate', ['linear'], ['zoom'], 4, 0.17, 8, 0.22, 12, 0.27],
+            'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.06, 5, 0.1, 7, 0.16, 9, 0.22, 12, 0.27],
       'icon-allow-overlap': true, // clustering already keeps them apart
     },
   })
