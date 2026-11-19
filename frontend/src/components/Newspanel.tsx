@@ -4,6 +4,7 @@ import type { NewsItem } from '../types'
 
 interface Props {
   onOpenChange: (open: boolean) => void // the map leaves room on the right while the box is open
+  startClosed?: boolean // admins: closed at first, so the map editor gets the room (they can still open it)
 }
 
 const REFRESH_MINUTES = 2 // the backend reads the feeds every 10 min; 2 min here keeps the box close to that
@@ -19,9 +20,9 @@ function timeAgo(iso: string): string {
 }
 
 // The box on the right of the map: the latest news from the feeds. Clicking one opens the article.
-export default function NewsPanel({ onOpenChange }: Props) {
-  // Open on computers, closed on phones (like the boxes on the left)
-  const [open, setOpen] = useState(() => window.innerWidth > 600)
+export default function NewsPanel({ onOpenChange, startClosed = false }: Props) {
+  // Open on computers, closed on phones (like the boxes on the left) and for admins
+  const [open, setOpen] = useState(() => !startClosed && window.innerWidth > 600)
   const [lang, setLang] = useState<Lang>('all')
   const [news, setNews] = useState<NewsItem[]>([])
   const [error, setError] = useState(false)

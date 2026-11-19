@@ -110,6 +110,181 @@ textarea {
   }
 }
 
+/* ---------- News (right side of the map) ---------- */
+/* The right column: left of the zoom buttons. Uses .map-side's rules (column, clicks go through the gaps). */
+.map-side.map-side-right {
+  left: auto;
+  right: 52px;
+  width: 290px;
+}
+
+/* The map editor inside the column: placed by the column, not on its own */
+.map-side-right .editor {
+  top: auto;
+  right: auto;
+  width: auto;
+  max-height: 55%;
+}
+
+/* Admins: a wider column and a taller editor (the news starts closed under it). Not on phones: there the column is free. */
+@media (min-width: 601px) {
+  .map-side.map-side-right.with-editor {
+    width: 340px;
+  }
+}
+
+.map-side-right.with-editor .editor {
+  max-height: 78%;
+}
+
+/* The editor's list of layers: one side, then its layers (name · Hide · Edit) */
+.editor-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.editor-side-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8b95a3;
+}
+
+.editor-layer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0 2px 14px;
+}
+
+.editor-layer-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+/* A hidden layer: greyed, so the admin sees at a glance what visitors don't */
+.editor-layer.hidden .editor-layer-name {
+  color: #8b95a3;
+  text-decoration: line-through;
+}
+
+.editor-layer .btn-small {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.news-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 8px;
+  box-sizing: border-box;
+}
+
+/* Open: takes the rest of the column's height and scrolls inside */
+.map-side .news-panel.open {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.news-panel .key-title {
+  gap: 12px;
+}
+
+.news-langs {
+  display: flex;
+  gap: 4px;
+  padding: 0 14px 8px;
+}
+
+.news-lang {
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: #8b95a3;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.news-lang:hover {
+  color: #e6e9ee;
+}
+
+.news-lang.active {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.news-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain; /* scrolling the list doesn't zoom the map behind */
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.news-list li + li {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.news-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.news-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.news-item:focus-visible {
+  outline: 2px solid #e6e9ee;
+  outline-offset: -2px;
+}
+
+.news-title {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.news-meta {
+  font-size: 11px;
+  color: #8b95a3;
+}
+
+/* Phones: the closed box sits under the zoom buttons; open, it covers the width of the screen */
+@media (max-width: 600px) {
+  .map-side.map-side-right {
+    top: 150px; /* under the zoom buttons and the ruler */
+    right: 10px;
+    width: auto;
+    align-items: flex-end;
+  }
+
+  .map-side-right .news-panel.open {
+    position: fixed;
+    top: 150px; /* under the zoom buttons and the ruler */
+    left: 12px;
+    right: 12px;
+    max-height: 70%;
+    z-index: 2;
+  }
+}
+
 /* Popups: dark like the boxes on the map (MapLibre makes them white by default).
    Each rule starts with .maplibregl-popup so it wins over MapLibre's own CSS, which loads after this file. */
 .maplibregl-popup .maplibregl-popup-content {
@@ -404,8 +579,26 @@ textarea {
   gap: 8px;
 }
 
-.list-controls select {
+.list-controls select,
+.list-controls input {
   width: auto;
+}
+
+/* Bases tab: the search and filter go under the title on small screens */
+.list-header {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .list-controls {
+    width: 100%;
+  }
+
+  .list-controls input,
+  .list-controls select {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .event-list {
@@ -497,6 +690,17 @@ textarea {
   .topbar {
     flex-wrap: wrap;
     gap: 10px;
+  }
+
+  /* 7 tabs don't fit a phone: they scroll sideways instead of making the page wider than the screen */
+  .tabs {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .tab {
+    white-space: nowrap;
   }
 
   .event-item {
@@ -680,8 +884,8 @@ textarea {
   display: flex;
   gap: 4px;
   padding: 5px;
-  max-width: calc(100% - 520px);
-  /* leave room for the header (left) and the zoom buttons (right) */
+  max-width: calc(100% - 700px);
+  /* leave room for the boxes on the left and on the right */
   overflow-x: auto;
   /* many countries → scroll sideways */
 }
@@ -886,6 +1090,19 @@ textarea {
 .key-side {
   padding-left: 44px;
   font-size: 12px;
+}
+
+/* A side's layers, one step further in, under the side */
+.key-layer {
+  padding-left: 66px;
+  font-size: 12px;
+}
+
+.key-layer .key-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Siren swatch and frontline area swatch */
@@ -1174,6 +1391,8 @@ textarea {
 .map-panel ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Admin News tab: a hidden item is dimmed */
 .news-hidden .event-info {
   opacity: 0.55;
 }
@@ -1181,125 +1400,7 @@ textarea {
 .event-meta a {
   color: inherit;
 }
-/* ---------- News (right side of the map) ---------- */
-/* The right column: left of the zoom buttons. Uses .map-side's rules (column, clicks go through the gaps). */
-.map-side.map-side-right {
-  left: auto;
-  right: 52px;
-  width: 290px;
-}
 
-/* The map editor inside the column: placed by the column, not on its own */
-.map-side-right .editor {
-  top: auto;
-  right: auto;
-  width: auto;
-  max-height: 55%;
-}
-
-.news-panel {
-  display: flex;
-  flex-direction: column;
-  padding: 4px 0 8px;
-  box-sizing: border-box;
-}
-
-/* Open: takes the rest of the column's height and scrolls inside */
-.map-side .news-panel.open {
-  flex-shrink: 1;
-  min-height: 0;
-}
-
-.news-panel .key-title {
-  gap: 12px;
-}
-
-.news-langs {
-  display: flex;
-  gap: 4px;
-  padding: 0 14px 8px;
-}
-
-.news-lang {
-  padding: 3px 10px;
-  font: inherit;
-  font-size: 12px;
-  color: #8b95a3;
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.news-lang:hover {
-  color: #e6e9ee;
-}
-
-.news-lang.active {
-  color: var(--on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.news-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain; /* scrolling the list doesn't zoom the map behind */
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.news-list li + li {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.news-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 9px 14px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.news-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.news-item:focus-visible {
-  outline: 2px solid #e6e9ee;
-  outline-offset: -2px;
-}
-
-.news-title {
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.news-meta {
-  font-size: 11px;
-  color: #8b95a3;
-}
-
-/* Phones: the closed box sits under the zoom buttons; open, it covers the width of the screen */
-@media (max-width: 600px) {
-  .map-side.map-side-right {
-    top: 112px;
-    right: 10px;
-    width: auto;
-    align-items: flex-end;
-  }
-
-  .map-side-right .news-panel.open {
-    position: fixed;
-    top: 104px; /* under the zoom buttons */
-    left: 12px;
-    right: 12px;
-    max-height: 70%;
-    z-index: 2;
-  }
-}
 /* ---------- Map tools ---------- */
 /* The ruler button: same look as the zoom buttons; dark when measuring */
 .maplibregl-ctrl-group .measure-button {
@@ -1334,6 +1435,9 @@ textarea {
     text-align: center;
   }
 }
+
+/* Bases tab: bulk delete.
+   The .card rules make every input full width with padding, so checkboxes need their own size back. */
 .bulk-bar {
   display: flex;
   align-items: center;
@@ -1366,9 +1470,12 @@ textarea {
   flex: 1; /* the name takes the space, the Delete button stays on the right */
   min-width: 0;
 }
+
+/* Map editor for bases & events: the coordinates under the form */
 .editor-coords {
   font-variant-numeric: tabular-nums;
 }
+
 /* ---------- Test the weapon reach ---------- */
 /* The button that opens it (where the weapons box used to be) */
 .map-panel.test-start {
@@ -1446,7 +1553,6 @@ div.reach-weapon {
   min-height: 0;
 }
 
-
 /* Air defence box in the right column (testing mode): more room there, so the list shows all systems */
 .map-side-right .weapons-panel {
   max-height: 85%;
@@ -1454,4 +1560,85 @@ div.reach-weapon {
 
 .map-side-right .reach-list {
   max-height: none;
+}
+
+/* ---------- Import map: one row per KML folder ---------- */
+.import-folders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.import-folder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Skipped folders step back, so the ones that will be imported stand out */
+.import-folder.skipped {
+  opacity: 0.55;
+}
+
+.import-folder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.import-folder-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.import-folder-title strong {
+  align-self: flex-start; /* an Arabic name sits on the left like the rest, not pushed to the right */
+}
+
+.import-folder-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.card .import-folder-head select {
+  width: auto;
+  min-width: 170px;
+  flex-shrink: 0;
+}
+
+.import-folder-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.import-folder-detail.row {
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+@media (max-width: 600px) {
+  .import-folder-head,
+  .import-folder-detail.row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .card .import-folder-head select {
+    width: 100%;
+  }
+}
+
+/* Admin → Frontlines: a hidden layer steps back */
+.layer-hidden .event-info {
+  opacity: 0.55;
 }

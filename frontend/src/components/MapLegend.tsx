@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import airportIcon from '../assets/icons/airport.png'
 import militaryBaseIcon from '../assets/icons/military_base.png'
 import navalBaseIcon from '../assets/icons/naval_base.png'
+import missileBaseIcon from '../assets/icons/missile_base.png'
 import airDefenceIcon from '../assets/icons/air_defence.png'
 import radarIcon from '../assets/icons/radar.png'
 import fightingIcon from '../assets/icons/fighting.png'
@@ -16,12 +17,24 @@ interface Props {
   sides: LegendSide[] // the selected country's sides (empty in "All")
   hiddenSides: number[]
   onToggleSide: (sideId: number) => void
+  hiddenLayers: string[] // layer names the visitor switched off
+  onToggleLayer: (name: string) => void
   autoFold: boolean // a country with weapons is open: fold the key so the weapons box gets the room
 }
 
 // The map key in the bottom-left corner. Each line explains a symbol,
 // and clicking the line shows or hides it on the map (a dimmed line = hidden).
-export default function MapLegend({ visible, onToggle, onShowAll, sides, hiddenSides, onToggleSide, autoFold }: Props) {
+export default function MapLegend({
+  visible,
+  onToggle,
+  onShowAll,
+  sides,
+  hiddenSides,
+  onToggleSide,
+  hiddenLayers,
+  onToggleLayer,
+  autoFold,
+}: Props) {
   // Open on computers, closed on phones (it would cover the map)
   const [open, setOpen] = useState(() => window.innerWidth > 600)
 
@@ -32,7 +45,8 @@ export default function MapLegend({ visible, onToggle, onShowAll, sides, hiddenS
   }, [autoFold])
 
   // Something is hidden → offer "Show everything"
-  const somethingHidden = hiddenSides.length > 0 || (Object.keys(ALL_VISIBLE) as Category[]).some((c) => !visible[c])
+  const somethingHidden =
+    hiddenSides.length > 0 || hiddenLayers.length > 0 || (Object.keys(ALL_VISIBLE) as Category[]).some((c) => !visible[c])
 
   // One line of the key = one switch
   function row(category: Category, symbol: React.ReactNode, label: string, detail?: string) {
@@ -76,23 +90,43 @@ export default function MapLegend({ visible, onToggle, onShowAll, sides, hiddenS
             <div className="key-group-name">On the ground</div>
             {row('events', <span className="legend-pin" />, 'Confirmed events')}
             {row('frontlines', <span className="key-area" />, 'Frontlines')}
-            {/* The selected country's sides, indented under Frontlines */}
+            {/* The selected country's sides, indented under Frontlines, and each side's layers under it */}
             {sides.map((side) => {
               const on = !hiddenSides.includes(side.id)
+              const sideShown = on && visible.frontlines
               return (
-                <button
-                  key={side.id}
-                  type="button"
-                  className={on && visible.frontlines ? 'key-row key-side' : 'key-row key-side off'}
-                  aria-pressed={on}
-                  disabled={!visible.frontlines}
-                  onClick={() => onToggleSide(side.id)}
-                >
-                  <span className="key-symbol">
-                    <span className="side-dot" style={{ background: side.color }} />
-                  </span>
-                  <span className="key-label">{side.name}</span>
-                </button>
+                <div key={side.id}>
+                  <button
+                    type="button"
+                    className={sideShown ? 'key-row key-side' : 'key-row key-side off'}
+                    aria-pressed={on}
+                    disabled={!visible.frontlines}
+                    onClick={() => onToggleSide(side.id)}
+                  >
+                    <span className="key-symbol">
+                      <span className="side-dot" style={{ background: side.color }} />
+                    </span>
+                    <span className="key-label">{side.name}</span>
+                  </button>
+                  {side.layers.map((name) => {
+                    const layerOn = !hiddenLayers.includes(name)
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        className={layerOn && sideShown ? 'key-row key-layer' : 'key-row key-layer off'}
+                        aria-pressed={layerOn}
+                        disabled={!sideShown} // a hidden side hides all its layers
+                        title={layerOn ? 'Click to hide' : 'Click to show'}
+                        onClick={() => onToggleLayer(name)}
+                      >
+                        <span className="key-label">
+                          <bdi>{name}</bdi>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               )
             })}
             {row('fighting', <img src={fightingIcon} alt="" />, 'Fighting')}
@@ -106,6 +140,7 @@ export default function MapLegend({ visible, onToggle, onShowAll, sides, hiddenS
             {row('naval_base', <img src={navalBaseIcon} alt="" />, 'Naval bases')}
             {row('air_defence', <img src={airDefenceIcon} alt="" />, 'Air defence')}
             {row('radar', <img src={radarIcon} alt="" />, 'Radars')}
+            {row('missile_base', <img src={missileBaseIcon} alt="" />, 'Missile bases')}
           </div>
 
           {somethingHidden && (

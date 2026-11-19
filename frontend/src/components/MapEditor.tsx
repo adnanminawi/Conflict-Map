@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONStoreFeatures, TerraDraw } from 'terra-draw'
-import { saveLayer } from '../api/admin'
+import { fetchAllLayers, saveLayer, setLayerHidden } from '../api/admin'
 import { fetchSides } from '../api/sides'
 import { getErrorMessage, isUnauthorized } from '../api/client'
 import { cancelDrawing, createDraw, finishDrawing, fromDraw, toDrawFeatures } from '../map/drawTools'
 import { DEFAULT_COLOR, enableShapePopups } from '../map/shapesLayer'
+import { ALL, countryName } from '../map/filters'
 import SidePicker from './SidePicker'
 import type { MapLayer, Side } from '../types'
 
 interface Props {
   map: maplibregl.Map
-  layers: MapLayer[]
+  country: string // the country tab that is open ("YE"), or ALL
   onEditingChange: (layerName: string | null) => void // tells the map which layer to hide while editing
-  onSaved: () => Promise<void> // reloads the layers after a save
+  onSaved: () => Promise<void> // reloads the public map's layers after a save / hide / show
 }
 
 type Tool = 'select' | 'area' | 'line' | 'arrow' | 'fighting' | 'explosion' | 'text'
@@ -43,7 +44,7 @@ const SELECTED_HINT = 'Drag a white corner to move it. Drag a small dot to add a
 const today = new Date().toLocaleDateString('en-CA') // "2026-10-29"
 
 // The admin's editing panel on the map. Only shown when an admin is logged in.
-export default function MapEditor({ map, layers, onEditingChange, onSaved }: Props) {
+export default function MapEditor({ map, country: tabCountry, onEditingChange, onSaved }: Props) {
   const drawRef = useRef<TerraDraw | null>(null)
   const toolRef = useRef<Tool>('select') // the 'finish' event needs the current tool
   const colorRef = useRef(DEFAULT_COLOR) // the side's color, for new shapes (the 'finish' event needs it too)
@@ -51,7 +52,9 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
   const dblClickRef = useRef<(() => void) | null>(null) // the double-click listener, to remove it when editing stops
   const justDrawnRef = useRef(false) // true while selecting a shape that was just drawn (don't zoom then)
 
+  const [layers, setLayers] = useState<MapLayer[]>([]) // every layer, hidden ones too (the public map has only the shown ones)
   const [editing, setEditing] = useState<string | null>(null) // name of the layer being edited
+  const [creating, setCreating] = useState(false) // the "New layer" form is open
   const [pick, setPick] = useState('') // layer name typed / chosen before editing
   const [sides, setSides] = useState<Side[]>([])
   const [country, setCountry] = useState('') // e.g. YE
@@ -74,19 +77,36 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
     fetchSides()
       .then(setSides)
       .catch((err) => setError(getErrorMessage(err)))
+    loadLayers()
   }, [])
+
+  // The admin's list of layers (hidden ones too)
+  async function loadLayers() {
+    try {
+      setLayers(await fetchAllLayers())
+    } catch (err) {
+      setError(isUnauthorized(err) ? 'Your login expired. Log in again on /admin.' : getErrorMessage(err))
+    }
+  }
+
+  // After a save / hide / show: the editor's list and the public map both change
+  async function reloadAll() {
+    await Promise.all([loadLayers(), onSaved()])
+  }
+
+  // Hide a layer from the public map, or show it again
+  async function toggleHidden(layer: MapLayer) {
+    setError('')
+    try {
+      await setLayerHidden(layer.name, !layer.hidden)
+      await reloadAll()
+    } catch (err) {
+      setError(isUnauthorized(err) ? 'Your login expired. Log in again on /admin.' : getErrorMessage(err))
+    }
+  }
 
   const side = sides.find((s) => s.id === sideId)
 
-  // Typing / picking a layer name. An existing layer → use its country and side.
-  function changePick(value: string) {
-    setPick(value)
-    const existing = layers.find((l) => l.name === value)
-    if (existing) {
-      setCountry(existing.country_code)
-      setSideId(existing.side_id)
-    }
-  }
 
   function chooseTool(next: Tool) {
     toolRef.current = next
@@ -95,10 +115,12 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
     drawRef.current?.setMode(TOOLS.find((t) => t.tool === next)!.mode)
   }
 
-  function startEditing() {
-    const name = pick.trim()
-    if (!name || !side) return
-    colorRef.current = side.color
+  // Open a layer in the editor: an existing one (its Edit button), or a new one (the New layer form)
+  function startEditing(name: string, layerSide: Side | undefined) {
+    if (!name || !layerSide) return
+    setCountry(layerSide.country_code)
+    setSideId(layerSide.id)
+    colorRef.current = layerSide.color
     const layer = layers.find((l) => l.name === name) // existing layer, or undefined = new layer
 
     const draw = createDraw(map)
@@ -151,6 +173,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
     drawRef.current = draw
     enableShapePopups(false) // no popups while drawing
     setEditing(name)
+    setCreating(false)
     onEditingChange(name)
     setChanged(false)
     setError('')
@@ -219,7 +242,7 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
     setError('')
     try {
       const result = await saveLayer({ name: editing, side_id: sideId, date, features })
-      await onSaved() // reload the layers, so the map shows the new version
+      await reloadAll() // reload the layers, so the map shows the new version
       stopEditing()
       setMessage(`${result.replaced ? 'Replaced' : 'Saved'} "${editing}" for ${date}.`)
     } catch (err) {
@@ -237,35 +260,93 @@ export default function MapEditor({ map, layers, onEditingChange, onSaved }: Pro
     setMessage('')
   }
 
-  // ---------- Not editing: choose a layer ----------
+  // ---------- Not editing: the open country's layers ----------
   if (!editing) {
-    const exists = layers.some((l) => l.name === pick.trim())
+    // Layer names ignore upper / lower case (like the database)
+    const exists = layers.some((l) => l.name.toLowerCase() === pick.trim().toLowerCase())
+    const countryLayers = layers.filter((l) => l.country_code === tabCountry)
+    // Grouped by side: { "Houthis": [layer, layer], … }
+    const bySide = new Map<number, MapLayer[]>()
+    for (const l of countryLayers) bySide.set(l.side_id, [...(bySide.get(l.side_id) ?? []), l])
+
     return (
       <div className="map-panel editor">
         <div className="editor-title">Edit map</div>
-        <input
-          value={pick}
-          onChange={(e) => changePick(e.target.value)}
-          list="editor-layers"
-          placeholder="Layer name, e.g. Taiz front"
-        />
-        <datalist id="editor-layers">
-          {layers.map((l) => (
-            <option key={l.id} value={l.name} />
-          ))}
-        </datalist>
-        <SidePicker
-          sides={sides}
-          country={country}
-          sideId={sideId}
-          onCountryChange={setCountry}
-          onSideChange={setSideId}
-          onSideCreated={(s) => setSides([...sides, s])}
-        />
+
+        {tabCountry === ALL ? (
+          <p className="editor-note">Choose a country tab at the top to see its layers.</p>
+        ) : (
+          <>
+            <div className="editor-note">{countryName(tabCountry)}: {countryLayers.length} layers</div>
+            {[...bySide.values()].map((sideLayers) => (
+              <div key={sideLayers[0].side_id} className="editor-side">
+                <div className="editor-side-name">
+                  <span className="side-dot" style={{ background: sideLayers[0].side_color }} /> {sideLayers[0].side_name}
+                </div>
+                {sideLayers
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((l) => (
+                    <div key={l.id} className={l.hidden ? 'editor-layer hidden' : 'editor-layer'}>
+                      <span className="editor-layer-name" title={`${l.name} · ${l.snapshot_date}`}>
+                        <bdi>{l.name}</bdi>
+                      </span>
+                      <button
+                        className="btn btn-small btn-ghost"
+                        title={l.hidden ? 'Hidden from visitors. Click to show it on the map.' : 'Click to hide it from visitors.'}
+                        onClick={() => toggleHidden(l)}
+                      >
+                        {l.hidden ? 'Show' : 'Hide'}
+                      </button>
+                      <button
+                        className="btn btn-small btn-ghost"
+                        onClick={() => startEditing(l.name, sides.find((s) => s.id === l.side_id))}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* A new layer: name + country + side */}
+        {!creating ? (
+          <button
+            className="btn btn-small"
+            onClick={() => {
+              setCreating(true)
+              setPick('')
+              setCountry(tabCountry === ALL ? '' : tabCountry)
+              setSideId(null)
+            }}
+          >
+            + New layer
+          </button>
+        ) : (
+          <div className="editor-section">
+            <input value={pick} onChange={(e) => setPick(e.target.value)} placeholder="New layer name, e.g. Taiz front" />
+            <SidePicker
+              sides={sides}
+              country={country}
+              sideId={sideId}
+              onCountryChange={setCountry}
+              onSideChange={setSideId}
+              onSideCreated={(s) => setSides([...sides, s])}
+            />
+            {exists && <p className="editor-note">A layer with this name already exists: use its Edit button.</p>}
+            <div className="editor-actions">
+              <button className="btn btn-small" onClick={() => startEditing(pick.trim(), side)} disabled={!pick.trim() || !side || exists}>
+                Create
+              </button>
+              <button className="btn btn-small btn-ghost" onClick={() => setCreating(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {error && <p className="error">{error}</p>}
-        <button className="btn btn-small" onClick={startEditing} disabled={!pick.trim() || !side}>
-          {exists || !pick.trim() ? 'Edit layer' : 'Create new layer'}
-        </button>
         {message && <p className="editor-note">{message}</p>}
       </div>
     )

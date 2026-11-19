@@ -65,6 +65,7 @@ export default function MapPage() {
   // The ruler button (measure distance). Kept so placing a weapon can close it.
   const measureRef = useRef<MeasureControl | null>(null)
   const [hiddenSides, setHiddenSides] = useState<number[]>([]) // side ids switched off (reset when the country changes)
+  const [hiddenLayers, setHiddenLayers] = useState<string[]>([]) // layer names switched off in the map key (reset too)
   const [placed, setPlaced] = useState<PlacedWeapon[]>([]) // weapons the visitor put on the map (gone after a refresh)
   const [placing, setPlacing] = useState<Weapon | null>(null) // chosen in the panel, waiting for a click on the map
   const justPlacedId = useRef<number | undefined>(undefined) // the weapon whose ring should grow when drawn
@@ -80,7 +81,9 @@ export default function MapPage() {
   // A ref, not state: changing it doesn't need to redraw the page.
   const newsOpen = useRef(false)
   const testModeRef = useRef(false) // while testing, the Air defence box is on the right
-  const rightRoom = () => (newsOpen.current || testModeRef.current ? 360 : 70) // 360 = the right box + the zoom buttons
+  // Room to leave on the right when zooming to something: the right column + the zoom buttons.
+  // Admins always have the editor there (410 = its wider column).
+  const rightRoom = () => (isAdmin ? 410 : newsOpen.current || testModeRef.current ? 360 : 70)
 
   const [weapons, setWeapons] = useState<Weapon[]>([])
 
@@ -117,13 +120,13 @@ export default function MapPage() {
       zoom: START_ZOOM,
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
-    map.addControl(new ClusterControl(), 'top-right') // under the ruler: group nearby bases and events
     // Under the zoom buttons. Starting to measure cancels placing a weapon (both use map clicks).
     const measure = new MeasureControl(() => {
       setPlacing(null)
       setCloseItemEditor((n) => n + 1)
     })
     map.addControl(measure, 'top-right')
+    map.addControl(new ClusterControl(), 'top-right') // under the ruler: group nearby bases and events
     measureRef.current = measure
     mapRef.current = map
 
@@ -213,14 +216,14 @@ export default function MapPage() {
     )
     // Air defence sites show their system in the popup, e.g. "Iron Dome · 70 km"
     const systems = new Map(defenceWeapons.map((w) => [w.id, `${w.name} · ${w.range_km.toLocaleString()} km`]))
-    showLocations(map, shown, systems) // the map groups them into clusters by itself
+    showLocations(map, shown, systems) // grouped only when the Group button is on
   }, [map, locations, visible, country, hiddenItem.location, weapons])
 
   // Reach from the border of the selected country: one ring per distance its weapons reach
   useEffect(() => {
     if (!map || !reachOn || country === ALL) return
     const kms = attackWeapons.filter((w) => w.country_code === country).map((w) => w.range_km)
-    let stop = () => { }
+    let stop = () => {}
     let cancelled = false
 
     setReachLoading(true)
@@ -248,7 +251,7 @@ export default function MapPage() {
     }
   }, [map, reachOn, country, weapons])
 
-  // Events: the selected country only, or none when switched off. The map groups them into clusters by itself.
+  // Events: the selected country only, or none when switched off. Grouped only when the Group button is on.
   useEffect(() => {
     if (!map) return
     showEvents(map, visible.events ? events.filter((e) => e.id !== hiddenItem.event && inCountry(e.country_code, country)) : [])
@@ -260,14 +263,18 @@ export default function MapPage() {
     if (!map) return
     const shown = layers
       .filter(
-        (l) => l.name !== editingName && inCountry(l.country_code, country) && !hiddenSides.includes(l.side_id),
+        (l) =>
+          l.name !== editingName &&
+          inCountry(l.country_code, country) &&
+          !hiddenSides.includes(l.side_id) &&
+          !hiddenLayers.includes(l.name),
       )
       .map((l) => ({
         ...l,
         geojson: { ...l.geojson, features: l.geojson.features.filter((f) => keepShape(f, visible)) },
       }))
     showShapes(map, shown)
-  }, [map, layers, editingName, visible, country, hiddenSides])
+  }, [map, layers, editingName, visible, country, hiddenSides, hiddenLayers])
 
   // Siren alerts: only in the "All" and Israel tabs, only the switched-on types
   useEffect(() => {
@@ -381,6 +388,7 @@ export default function MapPage() {
     setDefenceId(null) // so does the air defence coverage
     setDefenceAll(false)
     setHiddenSides([]) // each country starts with all its sides shown
+    setHiddenLayers([]) // and all its layers
     if (!map) return
     if (code === ALL) {
       map.flyTo({ center: START_CENTER, zoom: START_ZOOM })
@@ -411,9 +419,14 @@ export default function MapPage() {
     setHiddenSides((hidden) => (hidden.includes(sideId) ? hidden.filter((id) => id !== sideId) : [...hidden, sideId]))
   }
 
+  function toggleLayer(name: string) {
+    setHiddenLayers((hidden) => (hidden.includes(name) ? hidden.filter((n) => n !== name) : [...hidden, name]))
+  }
+
   function showAll() {
     setVisible(ALL_VISIBLE)
     setHiddenSides([])
+    setHiddenLayers([])
   }
 
   const countries = findCountries(locations, events, layers)
@@ -421,31 +434,31 @@ export default function MapPage() {
   // Phones have no room on the right: the Air defence box stays on the left there
   const narrow = window.innerWidth <= 600
   const defencePanel = (
-    <DefencePanel
-      systems={defenceWeapons.filter((w) => inCountry(w.country_code, country))}
-      colorOf={defenceColor}
-      sitesOf={sitesOf}
-      selectedId={defenceId}
-      onSelect={(id) => {
-        setDefenceAll(false) // one system: leave "all together"
-        setDefenceId(id)
-      }}
-      allOn={defenceAll}
-      onToggleAll={() => {
-        setDefenceId(null)
-        setDefenceAll((on) => !on)
-      }}
-      loading={coverageLoading}
-      placed={placed.filter((p) => isDefence(p.weapon))}
-      placing={placing && isDefence(placing) ? placing : null}
-      // The placed ring takes the system's color (the weapons layer colors rings by side_color)
-      onPlace={(w) => setPlacing({ ...w, side_color: defenceColor(w) })}
-      onCancelPlacing={() => setPlacing(null)}
-      onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
-      onClearAll={() => setPlaced((list) => list.filter((p) => !isDefence(p.weapon)))}
-      showCountries={country === ALL}
-      onSelectCountry={selectCountry}
-    />
+        <DefencePanel
+            systems={defenceWeapons.filter((w) => inCountry(w.country_code, country))}
+            colorOf={defenceColor}
+            sitesOf={sitesOf}
+            selectedId={defenceId}
+            onSelect={(id) => {
+              setDefenceAll(false) // one system: leave "all together"
+              setDefenceId(id)
+            }}
+            allOn={defenceAll}
+            onToggleAll={() => {
+              setDefenceId(null)
+              setDefenceAll((on) => !on)
+            }}
+            loading={coverageLoading}
+            placed={placed.filter((p) => isDefence(p.weapon))}
+            placing={placing && isDefence(placing) ? placing : null}
+            // The placed ring takes the system's color (the weapons layer colors rings by side_color)
+            onPlace={(w) => setPlacing({ ...w, side_color: defenceColor(w) })}
+            onCancelPlacing={() => setPlacing(null)}
+            onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
+            onClearAll={() => setPlaced((list) => list.filter((p) => !isDefence(p.weapon)))}
+            showCountries={country === ALL}
+            onSelectCountry={selectCountry}
+          />
   )
 
   return (
@@ -504,12 +517,15 @@ export default function MapPage() {
           sides={sidesInCountry(layers, country)}
           hiddenSides={hiddenSides}
           onToggleSide={toggleSide}
+          hiddenLayers={hiddenLayers}
+          onToggleLayer={toggleLayer}
           autoFold={testMode && narrow} // phones: the two boxes need the room
         />
       </div>
 
       {/* Right side: the map editor (admins only) on top, the news under it. Same idea as the left side. */}
-      <div className="map-side map-side-right">
+      {/* Admins: a wider column, so the map editor has room */}
+      <div className={isAdmin ? 'map-side map-side-right with-editor' : 'map-side map-side-right'}>
         {isAdmin && map && (
           <Suspense fallback={null}>
             <MapItemEditor
@@ -531,12 +547,13 @@ export default function MapPage() {
               onSaved={(kind) => (kind === 'location' ? loadLocations() : loadEvents())}
             />
             {/* One editor at a time: the frontline editor waits while bases & events are being edited */}
-            {!itemEditorOn && <MapEditor map={map} layers={layers} onEditingChange={setEditingName} onSaved={loadLayers} />}
+            {!itemEditorOn && <MapEditor map={map} country={country} onEditingChange={setEditingName} onSaved={loadLayers} />}
           </Suspense>
         )}
         {/* While testing the weapon reach: the Air defence box takes the news' place */}
-        {testMode ? !narrow && defencePanel : <NewsPanel onOpenChange={(open) => (newsOpen.current = open)} />}
+        {testMode ? !narrow && defencePanel : <NewsPanel startClosed={isAdmin} onOpenChange={(open) => (newsOpen.current = open)} />}
       </div>
     </>
   )
 }
+
