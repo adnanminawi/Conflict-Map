@@ -12,9 +12,13 @@ const MAX_POINTS = 200_000; // all coordinates together
 
 // KML descriptions often contain HTML. Keep plain text only.
 export function cleanText(value: unknown): string | null {
+  // Google My Maps sends HTML descriptions as { "@type": "html", value: "..." }: take the text inside
+  if (value && typeof value === 'object' && typeof (value as { value?: unknown }).value === 'string') {
+    value = (value as { value: string }).value;
+  }
   if (typeof value !== 'string') return null;
   const text = value
-    .replace(/[\u200e\u200f\u202a-\u202e]/g, '') // invisible direction marks (common in Arabic text)
+    .replace(/[‎‏‪-‮]/g, '') // invisible direction marks (common in Arabic text)
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

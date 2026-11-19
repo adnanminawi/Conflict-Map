@@ -1,5 +1,6 @@
-// Bases, airports and naval bases, drawn by the map itself (not as HTML images), with clustering:
-// zoomed out, nearby ones merge into a circle with a number. Click it to zoom in; zoomed in, the icons appear.
+// Bases, airports and naval bases, drawn by the map itself (not as HTML images).
+// Every base shows on its own. With the Group button on (clusterControl.ts), nearby ones merge into a circle
+// with a number when zoomed out; click it to zoom in.
 // Drawn on the map's canvas, so thousands of them stay smooth.
 import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
@@ -12,6 +13,7 @@ import militaryBaseIcon from '../assets/icons/military_base.png'
 import navalBaseIcon from '../assets/icons/naval_base.png'
 import airDefenceIcon from '../assets/icons/air_defence.png'
 import radarIcon from '../assets/icons/radar.png'
+import missileBaseIcon from '../assets/icons/missile_base.png'
 
 // Which picture to use for each location type (the map knows them by these names)
 const ICONS: Record<string, string> = {
@@ -20,11 +22,11 @@ const ICONS: Record<string, string> = {
   naval_base: navalBaseIcon,
   air_defence: airDefenceIcon,
   radar: radarIcon,
+  missile_base: missileBaseIcon,
 }
 
 // Clickable layers. shapesLayer.ts and alertsLayer.ts skip clicks on these, so a click on a base doesn't also open a frontline's popup.
 const LOCATION_LAYERS = ['locations-clusters', 'locations-icons']
-
 
 export async function setupLocationLayers(map: maplibregl.Map) {
   // 1. The 3 icons (128 px pictures, shown smaller by icon-size below)
@@ -33,8 +35,8 @@ export async function setupLocationLayers(map: maplibregl.Map) {
     if (!map.hasImage(`loc-${type}`)) map.addImage(`loc-${type}`, image.data)
   }
 
-  // 2. The data, with clustering on
-   map.addSource('locations', {
+  // 2. The data. Grouping starts off: the Group button turns it on (clusterControl.ts).
+  map.addSource('locations', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
     cluster: false,
@@ -69,7 +71,7 @@ export async function setupLocationLayers(map: maplibregl.Map) {
     paint: { 'text-color': '#ffffff' },
   })
 
-  // 5. Single bases: their icon. A bit smaller when zoomed out, bigger when zoomed in (28 px at zoom 8).
+  // 5. Single bases: their icon. Small when zoomed out (8 px at zoom 3), full size zoomed in (35 px at zoom 12).
   map.addLayer({
     id: 'locations-icons',
     type: 'symbol',
@@ -77,8 +79,8 @@ export async function setupLocationLayers(map: maplibregl.Map) {
     filter: ['!', ['has', 'point_count']],
     layout: {
       'icon-image': ['concat', 'loc-', ['get', 'type']],
-            'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.06, 5, 0.1, 7, 0.16, 9, 0.22, 12, 0.27],
-      'icon-allow-overlap': true, // clustering already keeps them apart
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.06, 5, 0.1, 7, 0.16, 9, 0.22, 12, 0.27],
+      'icon-allow-overlap': true, // show every base, even when they overlap
     },
   })
 
@@ -120,7 +122,7 @@ export async function setupLocationLayers(map: maplibregl.Map) {
   }
 }
 
-// Shows these bases (already filtered by type and country). The map groups them by itself.
+// Shows these bases (already filtered by type and country). They are grouped only when the Group button is on.
 // systems: air defence sites' system label by weapon id, e.g. 21 → "Iron Dome · 70 km" (shown in the popup)
 export function showLocations(map: maplibregl.Map, locations: MapLocation[], systems: Map<number, string> = new Map()) {
   const source = map.getSource('locations') as GeoJSONSource | undefined

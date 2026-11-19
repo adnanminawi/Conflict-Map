@@ -7,8 +7,9 @@ import LocationsAdmin from '../components/Locationsadmin'
 import LayerImport from '../components/LayerImport'
 import WeaponsAdmin from '../components/WeaponsAdmin'
 import NewsAdmin from '../components/Newsadmin'
+import MapImport from '../components/MapImport'
 
-type Tab = 'list' | 'add' | 'bases' | 'frontlines' | 'weapons' | 'news'
+type Tab = 'list' | 'add' | 'bases' | 'frontlines' | 'import' | 'weapons' | 'news'
 
 // The admin page: shows the login form, or the admin tools once logged in.
 export default function AdminPage() {
@@ -56,6 +57,9 @@ export default function AdminPage() {
           <button className={tab === 'frontlines' ? 'tab active' : 'tab'} onClick={() => setTab('frontlines')}>
             Frontlines
           </button>
+          <button className={tab === 'import' ? 'tab active' : 'tab'} onClick={() => setTab('import')}>
+            Import map
+          </button>
           <button className={tab === 'weapons' ? 'tab active' : 'tab'} onClick={() => setTab('weapons')}>
             Weapons
           </button>
@@ -77,6 +81,7 @@ export default function AdminPage() {
         {tab === 'add' && <EventForm onLoggedOut={handleLogout} />}
         {tab === 'bases' && <LocationsAdmin onLoggedOut={handleLogout} />}
         {tab === 'frontlines' && <LayerImport onLoggedOut={handleLogout} />}
+        {tab === 'import' && <MapImport onLoggedOut={handleLogout} />}
         {tab === 'weapons' && <WeaponsAdmin onLoggedOut={handleLogout} />}
         {tab === 'news' && <NewsAdmin onLoggedOut={handleLogout} />}
       </main>

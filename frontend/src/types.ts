@@ -1,5 +1,6 @@
 import type { Feature, FeatureCollection } from 'geojson'
 
+// Same shape as GET /api/events returns.
 export interface MapEvent {
   id: number
   event_type_id: number
@@ -13,28 +14,28 @@ export interface MapEvent {
   icon: string
   color: string | null
   location_name: string | null
-  country_code: string | null
+  country_code: string | null // "IR", "IL"… null = not set (old events)
 }
 
 // Same shape as GET /api/locations returns.
 export interface MapLocation {
   id: number
-  weapon_id: number | null
   name: string
   country_code: string
   description: string | null
   lng: number
   lat: number
-  type_code: string // 'military_base' | 'airport' | 'naval_base'
+  type_code: string // 'military_base' | 'airport' | 'naval_base' | 'air_defence' | 'radar' | 'missile_base'
   type_name: string
   icon: string
+  weapon_id: number | null // air defence / radar sites: the system there (null = none)
 }
 
 // Event types for the admin form's dropdown (GET /api/events/types).
 export interface EventType {
   id: number
-  color: string | null
   name: string
+  color: string | null // the pin color on the map
 }
 
 export type EventStatus = 'unverified' | 'confirmed' | 'false'
@@ -45,7 +46,7 @@ export interface NewEvent {
   event_type_id: number
   lat: number
   lng: number
-  country_code: string
+  country_code: string // 2 letters, e.g. "IR"
   occurred_at: string // ISO date in UTC
   status: EventStatus
 }
@@ -60,10 +61,19 @@ export interface AdminEvent {
   created_by_username: string
 }
 
+// Location types for the KML import dropdown (GET /api/locations/types).
 export interface LocationType {
   id: number
   code: string // 'military_base' | 'airport' | 'naval_base'
   name: string
+}
+
+// What the admin sends to import a KML/KMZ file of bases / airports.
+export interface KmlImportInput {
+  file: File
+  type: string // location type code, e.g. 'military_base'
+  country: string // 2-letter code, e.g. 'IR'
+  dryRun: boolean // true = preview only, nothing is saved
 }
 
 // What a KML import did, or would do in a preview (POST /api/locations/import).
@@ -73,22 +83,24 @@ export interface ImportSummary {
   saved: number
   duplicates: number
   notPoints: number
-  linked: number // air defence / radar sites linked to their system by name (e.g. "ID" → Iron Dome)
-  noSystem: number // air defence / radar sites with no system (no name matched)
   invalid: number
   autoNamed: number
-  byType: Record<string, number> // saved per type name, e.g. { "Air defence": 103, "Radar": 17 }
+  byType: Record<string, number> // saved per type name, e.g. { "Air defence": 105, "Radar": 19 }
   guessed: number // got their type from their name / folder; the rest got the chosen type
+  linked: number // air defence / radar sites linked to their system by name (e.g. "ID" → Iron Dome)
+  noSystem: number // air defence / radar sites with no system (no name matched)
 }
 
-export interface KmlImportInput {
-  file: File
-  type: string // location type code, e.g. 'military_base'
-  country: string // 2-letter code, e.g. 'IR'
-  dryRun: boolean // true = preview only, nothing is saved
+// ---------- Countries ----------
+
+// One country (GET /api/countries)
+export interface Country {
+  code: string // 'YE'
+  name_en: string // 'Yemen'
+  name_ar: string // 'اليمن'
 }
 
-// ---------- Sides ----------
+// ---------- Frontline / area layers ----------
 
 // One side of a conflict in a country, e.g. Yemen → Houthis (GET /api/sides).
 export interface Side {
@@ -105,8 +117,6 @@ export interface NewSide {
   color: string // "#RRGGBB"
 }
 
-// ---------- Frontline / area layers ----------
-
 // The newest version of one layer (GET /api/layers).
 export interface MapLayer {
   id: number
@@ -116,6 +126,7 @@ export interface MapLayer {
   side_color: string // "#A52714"
   country_code: string // "YE" — comes from the side
   snapshot_date: string // "2026-10-24"
+  hidden?: boolean // the admin hid it from the public map (only in the admin's list)
   geojson: FeatureCollection
 }
 
@@ -129,6 +140,7 @@ export interface LayerVersion {
   country_code: string
   snapshot_date: string
   shape_count: number
+  hidden: boolean // the admin hid this layer from the public map
   created_by_username: string
 }
 
@@ -155,42 +167,6 @@ export interface SaveLayerResult {
   areas: number
   lines: number
   icons: number // icons + text labels
-}
-
-// ---------- Siren alerts ----------
-
-export type AlertType = 'rockets' | 'drone' | 'other'
-
-export interface MapAlert {
-  id: number
-  type: AlertType
-  type_name: string
-  started_at: string
-  area_ids: number[]
-}
-
-export interface MapAlertArea {
-  id: number
-  name_he: string
-  name_en: string | null
-  name_ar: string | null
-  lat: number
-  lng: number
-  polygon: number[][] | null // [[lng, lat], ...]
-}
-
-// GET /api/alerts: the alerts + the places they covered (each place once)
-export interface AlertsResponse {
-  alerts: MapAlert[]
-  areas: MapAlertArea[]
-}
-// ---------- Countries ----------
-
-// One country (GET /api/countries)
-export interface Country {
-  code: string // 'YE'
-  name_en: string // 'Yemen'
-  name_ar: string // 'اليمن'
 }
 
 // ---------- Weapons ----------
@@ -229,6 +205,36 @@ export interface WeaponInput {
   source: string
   description: string
 }
+
+// ---------- Siren alerts ----------
+
+export type AlertType = 'rockets' | 'drone' | 'other'
+
+export interface MapAlert {
+  id: number
+  type: AlertType
+  type_name: string
+  started_at: string
+  area_ids: number[]
+}
+
+export interface MapAlertArea {
+  id: number
+  name_he: string
+  name_en: string | null
+  name_ar: string | null
+  lat: number
+  lng: number
+  polygon: number[][] | null // [[lng, lat], ...]
+}
+
+// GET /api/alerts: the alerts + the places they covered (each place once)
+export interface AlertsResponse {
+  alerts: MapAlert[]
+  areas: MapAlertArea[]
+}
+
+// News from the RSS feeds (GET /api/news)
 export interface NewsItem {
   id: number
   title: string
@@ -246,12 +252,59 @@ export type NewsStatus = 'draft' | 'published'
 export interface AdminNewsItem extends NewsItem {
   status: NewsStatus
 }
+
+// What the admin sends to add or change one base on the map (POST / PUT /api/locations)
 export interface LocationInput {
   type: string // a location type code, e.g. 'air_defence'
-  weapon_id: number | null
   name: string
   country_code: string
   description: string | null
   lat: number
   lng: number
+  weapon_id: number | null // the system at this site (air defence / radar only)
+}
+
+// ---------- Import map (one KML with bases, frontlines and strikes) ----------
+
+// Where a folder's items go
+export type FolderAction = 'bases' | 'layer' | 'events' | 'skip'
+
+// One folder of the file, with the backend's guesses (POST /api/map-import/preview)
+export interface PreviewFolder {
+  index: number
+  name: string
+  points: number
+  areas: number
+  lines: number
+  action: FolderAction
+  baseTypes: Record<string, number> // pins per base type, e.g. { airport: 6 }
+  unclear: number // pins with no type: they get typeCode
+  typeCode: string
+  countries: Record<string, number> // pins per country, e.g. { YE: 40, SA: 1 }
+  sideId: number | null
+  layerName: string
+}
+
+export interface MapImportPreview {
+  found: number
+  folders: PreviewFolder[]
+}
+
+// What the admin chose for one folder
+export interface FolderChoice {
+  index: number
+  action: FolderAction
+  typeCode?: string
+  fileCountry?: boolean
+  sideId?: number | null
+  layerName?: string
+  eventTypeId?: number | null
+}
+
+export interface MapImportResult {
+  bases: { saved: number; duplicates: number; linked: number; byType: Record<string, number> }
+  layers: { name: string; replaced: boolean; areas: number; lines: number; icons: number }[]
+  events: { saved: number; duplicates: number }
+  skipped: number
+  invalid: number
 }

@@ -13,6 +13,15 @@ export async function getLayers(_req: Request, res: Response, next: NextFunction
   }
 }
 
+// GET /api/layers/admin — the newest version of every layer, hidden ones too (admin only: the map editor)
+export async function getAllLayers(_req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await layersService.getAllLatestLayers());
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/layers/versions — every saved version (admin only)
 export async function getLayerVersions(_req: Request, res: Response, next: NextFunction) {
   try {
@@ -69,6 +78,20 @@ export async function deleteLayerVersion(req: Request, res: Response, next: Next
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id < 1) throw AppError.badRequest('Invalid layer id');
     await layersService.deleteLayerVersion(id);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PATCH /api/layers/visibility  (admin only)
+// Body: { name: "Taiz front", hidden: true } — hides that layer from the public map (false = show it again)
+export async function setLayerHidden(req: Request, res: Response, next: NextFunction) {
+  try {
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    if (!name) throw AppError.badRequest('Layer name is required');
+    if (typeof req.body?.hidden !== 'boolean') throw AppError.badRequest('hidden must be true or false');
+    await layersService.setLayerHidden(name, req.body.hidden);
     res.status(204).end();
   } catch (err) {
     next(err);

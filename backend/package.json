@@ -12,7 +12,8 @@
     "import:alert-areas": "tsx scripts/importAlertAreas.ts",
     "telegram:login": "tsx scripts/telegramLogin.ts",
     "test:alerts": "tsx scripts/testAlertParser.ts",
-    "copy:mysql-to-postgres": "tsx scripts/copyMysqlToPostgres.ts"
+    "copy:mysql-to-postgres": "tsx scripts/copyMysqlToPostgres.ts",
+    "import:borders": "tsx scripts/importCountryBorders.ts"
   },
   "dependencies": {
     "@tmcw/togeojson": "^5.8.1",

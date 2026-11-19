@@ -22,7 +22,8 @@ async function findShapes(layerIds: number[]) {
 // Saves all the shapes of one version in ONE query.
 // jsonb_array_elements splits the list into one row per shape (f).
 // WITH ORDINALITY gives each shape its position (n), ORDER BY n saves them in the same order.
-async function saveShapes(client: PoolClient, layerId: number, geojson: FeatureCollection): Promise<void> {
+// Exported: the "Import map" tab saves layers with it too (mapImport.repository.ts).
+export async function saveShapes(client: PoolClient, layerId: number, geojson: FeatureCollection): Promise<void> {
   await client.query(
     `INSERT INTO map_layer_features (layer_id, properties, geom)
      SELECT $1,
@@ -37,15 +38,19 @@ async function saveShapes(client: PoolClient, layerId: number, geojson: FeatureC
 // ---------- Reading ----------
 
 // The newest version of every layer, with its side and its shapes.
+// includeHidden = false (public map): without the layers the admin hid. true (the admin's map editor): all of them.
 // to_char returns the date as plain text ("2026-10-24") so it never shifts by timezone.
-export async function findLatest(): Promise<MapLayer[]> {
+export async function findLatest(includeHidden = false): Promise<MapLayer[]> {
   const { rows } = await db.query(
     `SELECT l.id, l.name, l.side_id, s.name AS side_name, s.color AS side_color, s.country_code,
-            to_char(l.snapshot_date, 'YYYY-MM-DD') AS snapshot_date
+            to_char(l.snapshot_date, 'YYYY-MM-DD') AS snapshot_date,
+            l.name IN (SELECT name FROM hidden_layers) AS hidden
        FROM map_layers l
        JOIN sides s ON s.id = l.side_id
       WHERE l.snapshot_date = (SELECT MAX(m.snapshot_date) FROM map_layers m WHERE m.name = l.name)
+        AND ($1 OR l.name NOT IN (SELECT name FROM hidden_layers)) -- $1 = true: keep the hidden ones too
       ORDER BY l.snapshot_date DESC`,
+    [includeHidden],
   );
 
   const shapes = await findShapes(rows.map((layer) => layer.id));
@@ -60,12 +65,13 @@ export async function findLatest(): Promise<MapLayer[]> {
   return rows;
 }
 
-// Every version of every layer (for the admin list). shape_count = how many shapes it has.
+// Every version of every layer (for the admin list). shape_count = how many shapes it has, hidden = the admin hid this layer.
 export async function findVersions(): Promise<LayerVersion[]> {
   const { rows } = await db.query<LayerVersion>(
     `SELECT l.id, l.name, l.side_id, s.name AS side_name, s.color AS side_color, s.country_code,
             to_char(l.snapshot_date, 'YYYY-MM-DD') AS snapshot_date,
             (SELECT COUNT(*) FROM map_layer_features f WHERE f.layer_id = l.id) AS shape_count,
+            l.name IN (SELECT name FROM hidden_layers) AS hidden,
             a.username AS created_by_username
        FROM map_layers l
        JOIN sides s ON s.id = l.side_id
@@ -131,7 +137,26 @@ export async function replaceShapes(id: number, geojson: FeatureCollection, crea
 
 // Returns how many rows were deleted (0 = no version with that id).
 // Its shapes are deleted automatically (ON DELETE CASCADE).
+// If it was the layer's last version, its "hidden" mark goes too: a new layer with the same name starts shown.
 export async function deleteById(id: number): Promise<number> {
   const result = await db.query('DELETE FROM map_layers WHERE id = $1', [id]);
+  await db.query('DELETE FROM hidden_layers WHERE name NOT IN (SELECT name FROM map_layers)');
   return result.rowCount ?? 0;
+}
+
+// ---------- Show / hide a layer on the public map ----------
+
+// true if a layer (any version) has this name
+export async function nameExists(name: string): Promise<boolean> {
+  const { rows } = await db.query('SELECT 1 FROM map_layers WHERE name = $1 LIMIT 1', [name]);
+  return rows.length > 0;
+}
+
+// Hidden → a row in hidden_layers (ON CONFLICT DO NOTHING: already hidden is fine). Shown → no row.
+export async function setHidden(name: string, hidden: boolean): Promise<void> {
+  if (hidden) {
+    await db.query('INSERT INTO hidden_layers (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [name]);
+  } else {
+    await db.query('DELETE FROM hidden_layers WHERE name = $1', [name]);
+  }
 }

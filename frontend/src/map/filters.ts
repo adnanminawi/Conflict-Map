@@ -16,6 +16,7 @@ export type Category =
   | 'naval_base'
   | 'air_defence'
   | 'radar'
+  | 'missile_base'
 
 export type Visible = Record<Category, boolean>
 
@@ -32,6 +33,7 @@ export const ALL_VISIBLE: Visible = {
   naval_base: true,
   air_defence: true,
   radar: true,
+  missile_base: true,
 }
 
 // Which siren types each switch controls ('other' goes with rockets)
@@ -57,6 +59,7 @@ export interface LegendSide {
   id: number
   name: string
   color: string
+  layers: string[] // this side's layer names in the country, e.g. ["Taiz front", "Mocha front"]
 }
 
 // The sides that have layers in this country (each once, sorted by name). Empty for the "All" tab.
@@ -64,8 +67,12 @@ export function sidesInCountry(layers: MapLayer[], country: string): LegendSide[
   if (country === ALL) return []
   const found = new Map<number, LegendSide>()
   for (const l of layers) {
-    if (l.country_code === country) found.set(l.side_id, { id: l.side_id, name: l.side_name, color: l.side_color })
+    if (l.country_code !== country) continue
+    const side = found.get(l.side_id) ?? { id: l.side_id, name: l.side_name, color: l.side_color, layers: [] }
+    side.layers.push(l.name)
+    found.set(l.side_id, side)
   }
+  for (const side of found.values()) side.layers.sort((a, b) => a.localeCompare(b))
   return [...found.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
