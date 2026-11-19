@@ -1,6 +1,7 @@
 // Reads KML / KMZ files.
 // - parseKml():       the pins (points) → bases / airports  (POST /api/locations/import)
 // - parseKmlShapes(): areas, lines and icons → frontline layers (POST /api/layers/import)
+// - readFolders():    everything, grouped by folder → the "Import map" tab (POST /api/map-import)
 import AdmZip from 'adm-zip';
 import { DOMParser } from '@xmldom/xmldom';
 import { kml, kmlWithFolders } from '@tmcw/togeojson';
@@ -106,6 +107,30 @@ export function parseKml(file: Buffer, fileName: string): ParsedKml {
   }
 
   return result;
+}
+
+// ---------- Whole map (the "Import map" tab) ----------
+
+export interface KmlFolder {
+  name: string; // the folder path, e.g. "Bases / Airports", or "(no folder)"
+  placemarks: Feature[];
+}
+
+// Every placemark of the file, grouped by its folder, in the file's order.
+export function readFolders(file: Buffer, fileName: string): KmlFolder[] {
+  const folders = new Map<string, Feature[]>();
+  for (const { feature, folder } of readFeaturesWithFolders(file, fileName)) {
+    const name = folder ?? '(no folder)';
+    folders.set(name, [...(folders.get(name) ?? []), feature]);
+  }
+
+  // Nothing inside, but a <NetworkLink>: the file only points to an online map (e.g. Google My Maps)
+  if (folders.size === 0 && toKmlText(file, fileName).includes('<NetworkLink')) {
+    throw AppError.badRequest(
+      'This file only links to an online map, it has no data inside. In Google My Maps: ⋮ → Download KML → untick "Keep data up to date with network link KML".',
+    );
+  }
+  return [...folders].map(([name, placemarks]) => ({ name, placemarks }));
 }
 
 // ---------- Shapes (areas / lines / icons) ----------

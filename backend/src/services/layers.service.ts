@@ -5,8 +5,14 @@ import { AppError } from '../utils/AppError';
 import { parseKmlShapes } from '../utils/kml';
 import { cleanShapes, type CleanShapes } from '../utils/shapes';
 
+// Public map: without the hidden layers
 export async function getLatestLayers() {
   return layersRepository.findLatest();
+}
+
+// The admin's map editor: every layer, hidden ones too (to list them, show them again, or edit them)
+export async function getAllLatestLayers() {
+  return layersRepository.findLatest(true);
 }
 
 export async function getLayerVersions() {
@@ -71,4 +77,10 @@ async function saveVersion(
 export async function deleteLayerVersion(id: number) {
   const deleted = await layersRepository.deleteById(id);
   if (deleted === 0) throw AppError.notFound('Layer version not found');
+}
+
+// Admin: hide a layer from the public map, or show it again (all its versions, by name)
+export async function setLayerHidden(name: string, hidden: boolean) {
+  if (!(await layersRepository.nameExists(name))) throw AppError.notFound('Layer not found');
+  await layersRepository.setHidden(name, hidden);
 }

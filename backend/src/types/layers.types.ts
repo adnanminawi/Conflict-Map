@@ -9,6 +9,7 @@ export interface MapLayer {
   side_color: string; // "#A52714"
   country_code: string; // "YE" — comes from the side
   snapshot_date: string; // "2026-10-24" — the date this version shows
+  hidden: boolean; // the admin hid it (only the admin's list has hidden layers)
   geojson: FeatureCollection;
 }
 
@@ -22,6 +23,7 @@ export interface LayerVersion {
   country_code: string;
   snapshot_date: string;
   shape_count: number;
+  hidden: boolean; // the admin hid this layer from the public map
   created_by_username: string;
 }
 
