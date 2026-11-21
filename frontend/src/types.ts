@@ -29,6 +29,7 @@ export interface MapLocation {
   type_name: string
   icon: string
   weapon_id: number | null // air defence / radar sites: the system there (null = none)
+  icon_id: number | null // its icon from a KMZ file (null = the icon of its type)
 }
 
 // Event types for the admin form's dropdown (GET /api/events/types).
@@ -89,6 +90,7 @@ export interface ImportSummary {
   guessed: number // got their type from their name / folder; the rest got the chosen type
   linked: number // air defence / radar sites linked to their system by name (e.g. "ID" → Iron Dome)
   noSystem: number // air defence / radar sites with no system (no name matched)
+  fileIcons: number // sites that keep the icon from their KMZ file
 }
 
 // ---------- Countries ----------
@@ -262,6 +264,7 @@ export interface LocationInput {
   lat: number
   lng: number
   weapon_id: number | null // the system at this site (air defence / radar only)
+  icon_id: number | null // its own icon (a saved picture), null = the icon of its type
 }
 
 // ---------- Import map (one KML with bases, frontlines and strikes) ----------
@@ -279,6 +282,7 @@ export interface PreviewFolder {
   action: FolderAction
   baseTypes: Record<string, number> // pins per base type, e.g. { airport: 6 }
   unclear: number // pins with no type: they get typeCode
+  fileIcons: number // pins whose icon is a picture inside the KMZ
   typeCode: string
   countries: Record<string, number> // pins per country, e.g. { YE: 40, SA: 1 }
   sideId: number | null
@@ -307,4 +311,5 @@ export interface MapImportResult {
   events: { saved: number; duplicates: number }
   skipped: number
   invalid: number
+  fileIcons: number // bases and frontline pins that got their icon from the KMZ
 }

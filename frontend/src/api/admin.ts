@@ -202,3 +202,19 @@ export async function importMap(file: File, country: string, date: string, choic
   const { data } = await api.post<MapImportResult>('/map-import', form)
   return data
 }
+
+// ---------- Icons (pictures for bases and frontline pins) ----------
+
+// The ids of all saved icons, newest first (the pictures themselves: iconUrl(id))
+export async function fetchIcons(): Promise<number[]> {
+  const { data } = await api.get<number[]>('/icons')
+  return data
+}
+
+// Uploads a picture as a new icon (PNG, JPEG, GIF or WEBP, max 256 KB) and returns its id
+export async function uploadIcon(file: File): Promise<number> {
+  const form = new FormData()
+  form.append('file', file)
+  const { data } = await api.post<{ id: number }>('/icons', form)
+  return data.id
+}

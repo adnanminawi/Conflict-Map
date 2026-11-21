@@ -28,6 +28,7 @@ import {
 import MapLegend from '../components/MapLegend'
 import { MeasureControl } from '../map/Measuretool'
 import { ClusterControl } from '../map/clusterControl'
+import { enableFileIcons } from '../map/fileIcons'
 import CountryTabs from '../components/CountryTabs'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config'
@@ -132,6 +133,7 @@ export default function MapPage() {
 
     // Frontlines and alerts need the map style to be ready, so wait for 'load'
     map.on('load', async () => {
+      enableFileIcons(map) // icons from KMZ files, loaded when a pin needs one
       await setupShapeLayers(map)
       setupAlertLayers(map) // after the shapes, so alerts are drawn on top
       setupReachLayers(map)
@@ -556,4 +558,3 @@ export default function MapPage() {
     </>
   )
 }
-

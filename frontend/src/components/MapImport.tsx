@@ -3,8 +3,16 @@ import { fetchEventTypes, fetchLocationTypes, importMap, previewMapImport } from
 import { fetchSides } from '../api/sides'
 import { getErrorMessage, isUnauthorized } from '../api/client'
 import CountrySelect from './CountrySelect'
-import type { EventType, FolderAction, FolderChoice, LocationType, MapImportPreview, MapImportResult, PreviewFolder, Side,} from '../types'
-
+import type {
+  EventType,
+  FolderAction,
+  FolderChoice,
+  LocationType,
+  MapImportPreview,
+  MapImportResult,
+  PreviewFolder,
+  Side,
+} from '../types'
 
 interface Props {
   onLoggedOut: () => void
@@ -199,6 +207,7 @@ export default function MapImport({ onLoggedOut }: Props) {
                       <strong dir="auto">{f.name}</strong>
                       <span className="import-folder-meta">
                         {contents(f)}
+                        {f.fileIcons > 0 && ` · ${f.fileIcons} with their own icon`}
                         {countryCodes.length > 0 && ` · ${countryCodes.map((code) => `${code} ${f.countries[code]}`).join(', ')}`}
                       </span>
                     </div>
@@ -361,6 +370,7 @@ export default function MapImport({ onLoggedOut }: Props) {
             {result.events.duplicates > 0 && <li>Strikes already saved (skipped): {result.events.duplicates}</li>}
             {result.skipped > 0 && <li>Skipped: {result.skipped}</li>}
             {result.invalid > 0 && <li>Bad coordinates or at 0,0 (skipped): {result.invalid}</li>}
+            {result.fileIcons > 0 && <li>With their own icon from the KMZ: {result.fileIcons}</li>}
           </ul>
         </div>
       )}
