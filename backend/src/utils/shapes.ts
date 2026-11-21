@@ -114,7 +114,10 @@ export interface CleanShapes {
 function cleanProperties(p: Record<string, unknown>, geometry: Geometry) {
   const isLine = geometry.type === 'LineString' || geometry.type === 'MultiLineString';
   const isPoint = geometry.type === 'Point';
+  // A pin with the icon from its KMZ file: icon "file" + the saved picture's id (see fileIcons.ts)
+  const fileIconId = isPoint && p.icon === 'file' && Number.isInteger(p.iconId) && (p.iconId as number) > 0 ? (p.iconId as number) : null;
   return {
+    ...(fileIconId !== null && { iconId: fileIconId }),
     name: cleanText(p.name)?.slice(0, 200) ?? null,
     description: cleanText(p.description)?.slice(0, 2000) ?? null,
     stroke: readColor(p.stroke),
@@ -123,7 +126,7 @@ function cleanProperties(p: Record<string, unknown>, geometry: Geometry) {
     fill: readColor(p.fill),
     'fill-opacity': readNumber(p['fill-opacity'], 0, 1),
     arrow: isLine && p.arrow === true, // lines only: draw an arrowhead at the end
-    icon: isPoint ? (ICONS.includes(p.icon as string) ? (p.icon as string) : 'explosion') : null, // points only
+    icon: isPoint ? (fileIconId !== null ? 'file' : ICONS.includes(p.icon as string) ? (p.icon as string) : 'explosion') : null, // points only
   };
 }
 

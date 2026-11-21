@@ -91,7 +91,7 @@ export async function updateLocation(req: Request, res: Response, next: NextFunc
   }
 }
 
-// Checks the body of a create / update: { type, name, country_code, description?, lat, lng }
+// Checks the body of a create / update: { type, name, country_code, description?, lat, lng, weapon_id?, icon_id? }
 function readLocationBody(body: any): SaveLocationInput {
   if (!body || typeof body !== 'object') throw AppError.badRequest('Body must be JSON');
 
@@ -102,6 +102,15 @@ function readLocationBody(body: any): SaveLocationInput {
   if (weaponId !== null && (!Number.isInteger(weaponId) || weaponId < 1)) {
     throw AppError.badRequest('weapon_id must be a weapon id or null');
   }
+
+  // icon_id: a saved icon (number), null = back to the icon of its type, missing = don't change it
+  let iconId: number | null | undefined;
+  if (body.icon_id === null) iconId = null;
+  else if (body.icon_id !== undefined) {
+    iconId = Number(body.icon_id);
+    if (!Number.isInteger(iconId) || iconId < 1) throw AppError.badRequest('icon_id must be an icon id or null');
+  }
+
   const typeCode = typeof body.type === 'string' ? body.type.trim() : '';
   if (!typeCode) throw AppError.badRequest('type is required, e.g. "air_defence"');
 
@@ -115,7 +124,7 @@ function readLocationBody(body: any): SaveLocationInput {
   if (body.lat == null || !Number.isFinite(lat) || lat < -90 || lat > 90) throw AppError.badRequest('lat must be between -90 and 90');
   if (body.lng == null || !Number.isFinite(lng) || lng < -180 || lng > 180) throw AppError.badRequest('lng must be between -180 and 180');
 
-  return { typeCode, name,weaponId, countryCode, description, lat, lng };
+  return { typeCode, name, countryCode, description, lat, lng, weaponId, iconId };
 }
 
 // The :id in the URL must be a positive whole number

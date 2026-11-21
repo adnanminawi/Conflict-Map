@@ -14,6 +14,7 @@ export interface PreviewFolder {
   action: FolderAction; // our guess
   baseTypes: Record<string, number>; // pins per base type read from their name / icon, e.g. { airport: 6 }
   unclear: number; // pins with no type found: they get the folder's type (typeCode)
+  fileIcons: number;
   typeCode: string; // the type for unclear pins (guessed from the folder's name, else military_base)
   countries: Record<string, number>; // pins per country found from the borders, e.g. { YE: 36, SA: 2 }
   sideId: number | null; // frontlines: the guessed side (null = the admin must choose)
@@ -43,4 +44,5 @@ export interface MapImportResult {
   events: { saved: number; duplicates: number };
   skipped: number; // placemarks in "skip" folders, plus lines / areas in bases or strikes folders
   invalid: number; // pins with bad coordinates (or at 0,0)
+  fileIcons: number; // bases and frontline pins that got their icon from the KMZ
 }

@@ -1,13 +1,13 @@
 // Reads KML / KMZ files.
 // - parseKml():       the pins (points) → bases / airports  (POST /api/locations/import)
-// - parseKmlShapes(): areas, lines and icons → frontline layers (POST /api/layers/import)
+// - readKmlShapes():  areas, lines and icons → frontline layers (POST /api/layers/import)
 // - readFolders():    everything, grouped by folder → the "Import map" tab (POST /api/map-import)
 import AdmZip from 'adm-zip';
 import { DOMParser } from '@xmldom/xmldom';
 import { kml, kmlWithFolders } from '@tmcw/togeojson';
 import type { Feature } from 'geojson';
 import { AppError } from './AppError';
-import { cleanShapes, cleanText, type CleanShapes } from './shapes';
+import { cleanText } from './shapes';
 
 const MAX_KML_BYTES = 20 * 1024 * 1024; // 20 MB after unzipping
 
@@ -47,6 +47,7 @@ export interface KmlPoint {
   description: string | null;
   lng: number;
   lat: number;
+  iconLink: string | null; // the pin's icon (a link, or a picture inside the KMZ: files/tank.png)
 }
 
 export interface ParsedKml {
@@ -103,7 +104,15 @@ export function parseKml(file: Buffer, fileName: string): ParsedKml {
     let name = cleanText(feature.properties?.name)?.slice(0, 150) ?? null;
     if (name && DEFAULT_NAMES.includes(name.toLowerCase())) name = null;
 
-    result.points.push({ name, folder, description: cleanText(feature.properties?.description), lng, lat });
+    const icon = feature.properties?.icon;
+    result.points.push({
+      name,
+      folder,
+      description: cleanText(feature.properties?.description),
+      lng,
+      lat,
+      iconLink: typeof icon === 'string' ? icon : null,
+    });
   }
 
   return result;
@@ -135,7 +144,7 @@ export function readFolders(file: Buffer, fileName: string): KmlFolder[] {
 
 // ---------- Shapes (areas / lines / icons) ----------
 
-// All shapes of the file, checked and cleaned (see shapes.ts). Pins become icons.
-export function parseKmlShapes(file: Buffer, fileName: string): CleanShapes {
-  return cleanShapes(readFeatures(file, fileName));
+// All shapes of the file, not cleaned yet: the frontline import first links the KMZ icons, then cleans (shapes.ts).
+export function readKmlShapes(file: Buffer, fileName: string): Feature[] {
+  return readFeatures(file, fileName);
 }

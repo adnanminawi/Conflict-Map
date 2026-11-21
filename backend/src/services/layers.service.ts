@@ -2,7 +2,9 @@ import * as layersRepository from '../repositories/layers.repository';
 import * as sidesRepository from '../repositories/sides.repository';
 import type { ImportLayerInput, SaveLayerInput, SaveLayerResult } from '../types/layers.types';
 import { AppError } from '../utils/AppError';
-import { parseKmlShapes } from '../utils/kml';
+import { db } from '../config/db';
+import { readKmlShapes } from '../utils/kml';
+import { fileIcons } from './fileIcons.service';
 import { cleanShapes, type CleanShapes } from '../utils/shapes';
 
 // Public map: without the hidden layers
@@ -21,7 +23,8 @@ export async function getLayerVersions() {
 
 // Uploaded KML/KMZ file → one version of the layer
 export async function importLayer(input: ImportLayerInput, adminId: number): Promise<SaveLayerResult> {
-  const shapes = parseKmlShapes(input.file, input.fileName);
+  const features = readKmlShapes(input.file, input.fileName);
+  const shapes = cleanShapes(features);
 
   // A file that is almost only pins is a list of sites (bases, air defence…), not a frontline.
   // Here every pin would become an explosion icon, so send the admin to the right import.
@@ -31,7 +34,12 @@ export async function importLayer(input: ImportLayerInput, adminId: number): Pro
     );
   }
 
-  return saveVersion(input.name, input.sideId, input.snapshotDate, shapes, adminId);
+  // Pins with their own picture in the KMZ keep it (icon "file"). Saved only after the check above,
+  // so a rejected file leaves no pictures behind.
+  const icons = fileIcons(input.file, input.fileName);
+  const withIcons = icons.count > 0 ? cleanShapes(await icons.markPins(db, features)) : shapes;
+
+  return saveVersion(input.name, input.sideId, input.snapshotDate, withIcons, adminId);
 }
 
 // Shapes drawn in the map editor → one version of the layer

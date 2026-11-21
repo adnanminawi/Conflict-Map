@@ -9,13 +9,21 @@ import * as locationsRepository from '../repositories/locations.repository';
 import * as mapImportRepository from '../repositories/mapImport.repository';
 import * as sidesRepository from '../repositories/sides.repository';
 import * as weaponsRepository from '../repositories/weapons.repository';
-import {FOLDER_ACTIONS, type FolderAction, type FolderChoice, type MapImportPreview, type MapImportResult, type PreviewFolder,} from '../types/mapImport.types';
+import {
+  FOLDER_ACTIONS,
+  type FolderAction,
+  type FolderChoice,
+  type MapImportPreview,
+  type MapImportResult,
+  type PreviewFolder,
+} from '../types/mapImport.types';
 import { AppError } from '../utils/AppError';
 import { classifyIcon, classifySite, systemNameOf } from '../utils/classifySite';
 import { readFolders, type KmlFolder } from '../utils/kml';
 import { frontlineIcon, guessSide, isSkipFolder, isStrikeFolder } from '../utils/mapImportRules';
 import { cleanShapes, cleanText } from '../utils/shapes';
 import { checkCountry } from './countries.service';
+import { fileIcons } from './fileIcons.service';
 
 const DUPLICATE_METERS = 50; // same type closer than this = the same base / strike
 const DEFAULT_BASE_TYPE = 'military_base';
@@ -30,6 +38,7 @@ interface Pin {
   lng: number;
   lat: number;
   type: string | null; // the base type read from its name, else its icon (null = unclear)
+  iconLink: string | null; // its icon: a link, or a picture inside the KMZ (files/tank.png)
 }
 
 // The valid pins of a folder. Pins with bad coordinates or at 0,0 (a "read me" note) are counted as invalid.
@@ -50,7 +59,7 @@ function readPins(folder: KmlFolder): { pins: Pin[]; invalid: number } {
     let name = cleanText(p.name)?.slice(0, 150) ?? null;
     if (name && DEFAULT_NAMES.test(name)) name = null;
     const type = classifySite(name) ?? classifyIcon(p.styleUrl, p.icon);
-    pins.push({ name, description: cleanText(p.description), lng, lat, type });
+    pins.push({ name, description: cleanText(p.description), lng, lat, type, iconLink: typeof p.icon === 'string' ? p.icon : null });
   }
   return { pins, invalid };
 }
@@ -110,6 +119,7 @@ export async function previewMap(file: Buffer, fileName: string, country: string
   const folders = await checkFile(country, file, fileName);
   const typeCodes = new Set((await locationsRepository.findTypes()).map((t) => t.code));
   const sides = await sidesRepository.findAll();
+  const icons = fileIcons(file, fileName); // the pictures inside a KMZ (none in a .kml)
 
   // The country of every pin of the file, in one query
   const pinsPerFolder = folders.map((f) => readPins(f).pins);
@@ -139,6 +149,7 @@ export async function previewMap(file: Buffer, fileName: string, country: string
       action: guessAction(folder, counts, pins),
       baseTypes,
       unclear,
+      fileIcons: pins.filter((pin) => icons.has(pin.iconLink)).length,
       typeCode: folderType(folder, typeCodes),
       countries,
       sideId: guessSide(folder.name, shapeNames, sides, country),
@@ -177,6 +188,7 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
     events: { saved: 0, duplicates: 0 },
     skipped: 0,
     invalid: 0,
+    fileIcons: 0,
   };
 
   // 1. Check every choice before saving anything. A folder with no choice is skipped.
@@ -214,7 +226,10 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
     for (const placemark of folders[index].placemarks) {
       const p = placemark.properties ?? {};
       const isPoint = placemark.geometry?.type === 'Point';
-      layer.features.push(isPoint ? { ...placemark, properties: { ...p, icon: frontlineIcon(p.styleUrl, p.icon) } } : placemark);
+      // iconLink keeps the file's own icon, so a picture inside a KMZ can still be found later (markPins)
+      layer.features.push(
+        isPoint ? { ...placemark, properties: { ...p, icon: frontlineIcon(p.styleUrl, p.icon), iconLink: p.icon } } : placemark,
+      );
     }
     layers.set(key, layer);
   }
@@ -225,7 +240,9 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
       throw AppError.conflict(`The layer "${layer.name}" already belongs to another side. Use a different layer name.`);
     }
   }
-  const cleanLayers = [...layers.values()].map((layer) => ({ ...layer, shapes: cleanShapes(layer.features) }));
+  // Checked now (too many shapes → error before anything is saved). Saved inside the transaction below.
+  for (const layer of layers.values()) cleanShapes(layer.features);
+  const icons = fileIcons(input.file, input.fileName); // the pictures inside a KMZ (none in a .kml)
 
   // 3. Pins of the bases and strikes folders, with their country (one query for all of them)
   const pinFolders: { choice: FolderChoice; pins: Pin[] }[] = [];
@@ -269,9 +286,14 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
           const weaponId = system ? systems.get(`${countryCode}:${system}`) ?? systems.get(`${input.country}:${system}`) ?? null : null;
           if (weaponId !== null) result.bases.linked++;
 
+          // Its own icon from the KMZ: the picture is saved (once) and linked to the base
+          const iconId = await icons.idFor(client, pin.iconLink);
+          if (iconId !== null) result.fileIcons++;
+
           await mapImportRepository.insertLocation(client, {
             typeId: type.id,
             weaponId,
+            iconId,
             name: pin.name ?? type.name,
             countryCode,
             lng: pin.lng,
@@ -305,11 +327,16 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
       }
     }
 
-    for (const layer of cleanLayers) {
-      if (layer.shapes.features.length === 0) continue; // nothing drawable in it
-      const geojson = { type: 'FeatureCollection' as const, features: layer.shapes.features };
+    for (const layer of layers.values()) {
+      // Pins with their own picture in the KMZ keep it (icon "file"), then the shapes are cleaned
+      const marked = await icons.markPins(client, layer.features);
+      result.fileIcons += marked.filter((f) => f.properties?.icon === 'file').length;
+      const shapes = cleanShapes(marked);
+      if (shapes.features.length === 0) continue; // nothing drawable in it
+
+      const geojson = { type: 'FeatureCollection' as const, features: shapes.features };
       const replaced = await mapImportRepository.saveLayerVersion(client, layer.name, layer.sideId, input.date, geojson, adminId);
-      result.layers.push({ name: layer.name, replaced, areas: layer.shapes.areas, lines: layer.shapes.lines, icons: layer.shapes.icons });
+      result.layers.push({ name: layer.name, replaced, areas: shapes.areas, lines: shapes.lines, icons: shapes.icons });
     }
 
     await client.query('COMMIT');

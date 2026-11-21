@@ -10,6 +10,7 @@ import { weaponsRoutes } from './weapons.routes';
 import { countriesRoutes } from './countries.routes';
 import { newsRoutes } from './news.routes';
 import { mapImportRoutes } from './mapImport.routes';
+import { iconsRoutes } from './icons.routes';
 
 export const routes = Router();
 
@@ -32,3 +33,4 @@ routes.use('/weapons', weaponsRoutes);
 routes.use('/countries', countriesRoutes);
 routes.use('/news', newsRoutes);
 routes.use('/map-import', mapImportRoutes);
+routes.use('/icons', iconsRoutes);
