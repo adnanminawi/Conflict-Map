@@ -3,8 +3,12 @@ import * as weaponsRepository from '../repositories/weapons.repository';
 import type { ImportSummary, LocationRow, SaveLocationInput } from '../types/locations.types';
 import { AppError } from '../utils/AppError';
 import { parseKml } from '../utils/kml';
+import { db } from '../config/db';
+import { fileIcons } from './fileIcons.service';
+import { checkIcon } from './icons.service';
+import { classifySite, systemNameOf } from '../utils/classifySite';
 import { checkCountry } from './countries.service';
-import { classifySite,systemNameOf} from '../utils/classifySite';
+
 export async function getLocations() {
   return locationsRepository.findAll();
 }
@@ -64,7 +68,9 @@ export async function importKml(
     guessed: 0,
     linked: 0,
     noSystem: 0,
+    fileIcons: 0,
   };
+  const icons = fileIcons(file, fileName); // the pictures inside a KMZ (none in a .kml)
   const autoNamedPerType: Record<string, number> = {}; // for names like "Radar IL-003"
 
   // This country's systems, by type and name: "air_defence:iron dome" → its weapon id.
@@ -108,6 +114,9 @@ export async function importKml(
     if (weaponId !== null) summary.linked++;
     else if (code === 'air_defence' || code === 'radar') summary.noSystem++;
 
+    // Its own icon from the KMZ (a preview only counts it, the import saves the picture)
+    if (icons.has(point.iconLink)) summary.fileIcons++;
+
     if (!dryRun) {
       await locationsRepository.insert({
         typeId: type.id,
@@ -117,6 +126,7 @@ export async function importKml(
         lng: point.lng,
         lat: point.lat,
         description: point.description,
+        iconId: await icons.idFor(db, point.iconLink),
       });
     }
     summary.saved++;
@@ -157,7 +167,18 @@ async function toRow(input: SaveLocationInput): Promise<LocationRow> {
     }
   }
 
-  return { typeId, weaponId: input.weaponId, name: input.name, countryCode: input.countryCode, lng: input.lng, lat: input.lat, description: input.description };
+  await checkIcon(input.iconId);
+
+  return {
+    typeId,
+    weaponId: input.weaponId,
+    iconId: input.iconId,
+    name: input.name,
+    countryCode: input.countryCode,
+    lng: input.lng,
+    lat: input.lat,
+    description: input.description,
+  };
 }
 
 // Admin: add one location (placed by clicking the map). Returns its id.

@@ -8,6 +8,7 @@ import { cancelDrawing, createDraw, finishDrawing, fromDraw, toDrawFeatures } fr
 import { DEFAULT_COLOR, enableShapePopups } from '../map/shapesLayer'
 import { ALL, countryName } from '../map/filters'
 import SidePicker from './SidePicker'
+import IconPicker from './IconPicker'
 import type { MapLayer, Side } from '../types'
 
 interface Props {
@@ -215,7 +216,7 @@ export default function MapEditor({ map, country: tabCountry, onEditingChange, o
   }
 
   // Change the selected shape (name, color, arrow…)
-  function updateSelected(changes: Record<string, string | boolean>) {
+  function updateSelected(changes: Record<string, string | number | boolean>) {
     if (!selected || !drawRef.current) return
     drawRef.current.updateFeatureProperties(selected.id, changes)
     setSelected({ ...selected, props: { ...selected.props, ...changes } })
@@ -413,6 +414,21 @@ export default function MapEditor({ map, country: tabCountry, onEditingChange, o
             </label>
           )}
 
+          {/* Border of an area / thickness of a line: 0.5 (thin) to 10 (thick). 3 = the usual width on the map. */}
+          {p.mode !== 'point' && (
+            <label>
+              {p.mode === 'polygon' ? 'Border thickness' : 'Line thickness'}: {p['stroke-width'] ?? 3}
+              <input
+                type="range"
+                min={0.5}
+                max={10}
+                step={0.5}
+                value={p['stroke-width'] ?? 3}
+                onChange={(e) => updateSelected({ 'stroke-width': Number(e.target.value) })}
+              />
+            </label>
+          )}
+
           {p.mode === 'linestring' && (
             <label className="editor-check">
               <input type="checkbox" checked={p.arrow === true} onChange={(e) => updateSelected({ arrow: e.target.checked })} />
@@ -424,11 +440,20 @@ export default function MapEditor({ map, country: tabCountry, onEditingChange, o
             <label>
               Type
               <select value={p.icon ?? 'explosion'} onChange={(e) => updateSelected({ icon: e.target.value })}>
+                <option value="file">Picture</option>
                 <option value="fighting">Fighting</option>
                 <option value="explosion">Explosion</option>
                 <option value="text">Text only</option>
               </select>
             </label>
+          )}
+
+          {/* "Picture": choose one of the saved icons, or upload one. Saved without a picture, the pin becomes an explosion. */}
+          {p.mode === 'point' && p.icon === 'file' && (
+            <div className="editor-field">
+              <span className="editor-field-name">Picture</span>
+              <IconPicker value={p.iconId ?? null} onChange={(iconId) => updateSelected({ iconId: iconId ?? '' })} />
+            </div>
           )}
 
           <label>

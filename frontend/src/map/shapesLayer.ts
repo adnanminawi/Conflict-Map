@@ -41,8 +41,8 @@ function arrowheads(features: Feature[]): Feature[] {
     if (!f.properties?.arrow) continue
     const lines =
       f.geometry.type === 'LineString' ? [f.geometry.coordinates]
-        : f.geometry.type === 'MultiLineString' ? f.geometry.coordinates
-          : []
+      : f.geometry.type === 'MultiLineString' ? f.geometry.coordinates
+      : []
     for (const line of lines) {
       if (line.length < 2) continue
       result.push({
@@ -137,14 +137,19 @@ export async function setupShapeLayers(map: maplibregl.Map) {
     paint: { 'icon-color': ['get', 'color'] },
   })
 
-  // 6. Icons (fighting, explosion)
+  // 6. Icons (fighting, explosion, or the icon from a KMZ file). Small when zoomed out (10 px at zoom 3), 32 px from zoom 10.
   map.addLayer({
     id: 'shapes-icons',
     type: 'symbol',
     source: 'shapes',
-    filter: ['match', ['get', 'icon'], ['fighting', 'explosion'], true, false],
+    filter: ['match', ['get', 'icon'], ['fighting', 'explosion', 'file'], true, false],
     layout: {
-      'icon-image': ['get', 'icon'],
+      'icon-image': [
+        'case',
+        ['==', ['get', 'icon'], 'file'],
+        ['concat', 'file-icon-64-', ['to-string', ['get', 'iconId']]], // loaded when needed (fileIcons.ts)
+        ['get', 'icon'],
+      ],
       'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.15, 5, 0.22, 7, 0.32, 10, 0.5],
       'icon-allow-overlap': true,
     },

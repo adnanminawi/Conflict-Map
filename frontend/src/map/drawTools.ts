@@ -17,7 +17,8 @@ import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
 import { DEFAULT_COLOR } from './shapesLayer'
 
 // Colors of the dots that stand for icons while editing
-const ICON_COLORS: Record<string, HexColor> = { fighting: '#c81e28', explosion: '#f56e14', text: '#ffffff' }
+// While editing, pins are dots: the color tells which icon they have (file = an icon from a KMZ)
+const ICON_COLORS: Record<string, HexColor> = { fighting: '#c81e28', explosion: '#f56e14', text: '#ffffff', file: '#4fc3f7' }
 
 // Read a color / number from a shape, or use a default
 function color(f: GeoJSONStoreFeatures, key: string, fallback = DEFAULT_COLOR): HexColor {
@@ -28,6 +29,9 @@ function num(f: GeoJSONStoreFeatures, key: string, fallback: number): number {
   const value = f.properties[key]
   return typeof value === 'number' ? value : fallback
 }
+
+// Corner handles of the selected shape: big white dots = corners (drag to move),
+// small see-through dots = midpoints (drag one to add a new corner there).
 const HANDLES = {
   selectionPointWidth: 7,
   selectionPointColor: '#ffffff' as HexColor,
@@ -39,6 +43,7 @@ const HANDLES = {
   midPointOutlineColor: '#111111' as HexColor,
   midPointOutlineWidth: 1,
 }
+
 // Creates the drawing tool on the map. Shapes are drawn in their own colors.
 export function createDraw(map: maplibregl.Map): TerraDraw {
   // Allowed while selected: move the shape, drag / add / delete its corners
@@ -46,6 +51,7 @@ export function createDraw(map: maplibregl.Map): TerraDraw {
 
   return new TerraDraw({
     adapter: new TerraDrawMapLibreGLAdapter({ map }),
+    // Undo / redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z). Session = whole changes, mode = the last point while drawing.
     undoRedo: {
       sessionLevel: new TerraDrawSessionUndoRedo(),
       modeLevel: new TerraDrawModeUndoRedo(),
@@ -57,7 +63,7 @@ export function createDraw(map: maplibregl.Map): TerraDraw {
           fillColor: (f) => color(f, 'fill'),
           fillOpacity: (f) => num(f, 'fill-opacity', 0.35),
           outlineColor: (f) => color(f, 'stroke', color(f, 'fill')),
-          outlineWidth: 2,
+          outlineWidth: (f) => num(f, 'stroke-width', 3), // the border thickness the admin chose (3 = like on the map)
         },
       }),
       new TerraDrawLineStringMode({
@@ -116,6 +122,9 @@ export function fromDraw(snapshot: GeoJSONStoreFeatures[]): Feature[] {
     .filter((f) => !HELPER_PROPERTIES.some((key) => f.properties[key]))
     .map((f) => ({ type: 'Feature', geometry: f.geometry, properties: f.properties }))
 }
+
+// Finish / cancel the shape being drawn, as if the admin pressed Enter / Escape on the map.
+// Terra Draw listens to the keyboard on the map's canvas, so we send the key there.
 function pressKey(map: maplibregl.Map, key: string) {
   for (const type of ['keydown', 'keyup']) {
     map.getCanvas().dispatchEvent(new KeyboardEvent(type, { key, bubbles: true }))

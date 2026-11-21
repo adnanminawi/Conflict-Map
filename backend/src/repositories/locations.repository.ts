@@ -6,7 +6,7 @@ import type { LocationRow, MapLocation } from '../types/locations.types';
 // All bases / airports with their type. Static data, so no time filter.
 export async function findAll(): Promise<MapLocation[]> {
   const { rows } = await db.query<MapLocation>(
-    `SELECT l.id, l.name, l.country_code, l.description, l.weapon_id,
+    `SELECT l.id, l.name, l.country_code, l.description, l.weapon_id, l.icon_id,
             ST_X(l.geom) AS lng, ST_Y(l.geom) AS lat,
             t.code AS type_code, t.name AS type_name, t.icon
        FROM locations l
@@ -50,23 +50,26 @@ export async function existsNear(lng: number, lat: number, typeId: number, meter
 // Saves one location and returns its id.
 export async function insert(loc: LocationRow): Promise<number> {
   const { rows } = await db.query<{ id: number }>(
-    `INSERT INTO locations (location_type_id, weapon_id, name, country_code, geom, description)
-     VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7)
+    `INSERT INTO locations (location_type_id, weapon_id, name, country_code, geom, description, icon_id)
+     VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8)
      RETURNING id`,
-    [loc.typeId, loc.weaponId, loc.name, loc.countryCode, loc.lng, loc.lat, loc.description],
+    [loc.typeId, loc.weaponId, loc.name, loc.countryCode, loc.lng, loc.lat, loc.description, loc.iconId ?? null],
   );
   return rows[0].id;
 }
 
 // Changes everything about one location (the admin's edit box on the map).
+// Its own icon: changed only when iconId is given (a number, or null = back to the type icon).
+// $9 = "change the icon?" (true / false), $10 = the new icon. CASE keeps the old one when $9 is false.
 // Returns how many rows matched (0 = no location with that id).
 export async function update(id: number, loc: LocationRow): Promise<number> {
   const result = await db.query(
     `UPDATE locations
         SET location_type_id = $1, weapon_id = $2, name = $3, country_code = $4,
-            geom = ST_SetSRID(ST_MakePoint($5, $6), 4326), description = $7
+            geom = ST_SetSRID(ST_MakePoint($5, $6), 4326), description = $7,
+            icon_id = CASE WHEN $9 THEN $10::integer ELSE icon_id END
       WHERE id = $8`,
-    [loc.typeId, loc.weaponId, loc.name, loc.countryCode, loc.lng, loc.lat, loc.description, id],
+    [loc.typeId, loc.weaponId, loc.name, loc.countryCode, loc.lng, loc.lat, loc.description, id, loc.iconId !== undefined, loc.iconId ?? null],
   );
   return result.rowCount ?? 0;
 }

@@ -47,12 +47,21 @@ export async function locationExistsNear(client: PoolClient, lng: number, lat: n
 
 export async function insertLocation(
   client: PoolClient,
-  loc: { typeId: number; weaponId: number | null; name: string; countryCode: string; lng: number; lat: number; description: string | null },
+  loc: {
+    typeId: number;
+    weaponId: number | null;
+    iconId: number | null; // its icon from the KMZ (null = the icon of its type)
+    name: string;
+    countryCode: string;
+    lng: number;
+    lat: number;
+    description: string | null;
+  },
 ): Promise<void> {
   await client.query(
-    `INSERT INTO locations (location_type_id, weapon_id, name, country_code, geom, description)
-     VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7)`,
-    [loc.typeId, loc.weaponId, loc.name, loc.countryCode, loc.lng, loc.lat, loc.description],
+    `INSERT INTO locations (location_type_id, weapon_id, icon_id, name, country_code, geom, description)
+     VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326), $8)`,
+    [loc.typeId, loc.weaponId, loc.iconId, loc.name, loc.countryCode, loc.lng, loc.lat, loc.description],
   );
 }
 

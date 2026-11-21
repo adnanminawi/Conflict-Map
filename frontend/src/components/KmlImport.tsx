@@ -128,8 +128,10 @@ export default function KmlImport({ onLoggedOut, onImported }: Props) {
                 </li>
               ))}
             {summary.guessed > 0 && <li>Type read from the name or folder: {summary.guessed}</li>}
+            {/* Air defence / radar sites: linked to their system by name, or not (set it later in the map editor) */}
             {summary.linked > 0 && <li>Linked to a system (e.g. Iron Dome): {summary.linked}</li>}
             {summary.noSystem > 0 && <li>Air defence / radar with no system: {summary.noSystem}</li>}
+            {summary.fileIcons > 0 && <li>With their own icon from the KMZ: {summary.fileIcons}</li>}
             <li>Already on the map (skipped): {summary.duplicates}</li>
             {summary.notPoints > 0 && <li>Lines / shapes (skipped): {summary.notPoints}</li>}
             {summary.invalid > 0 && <li>Bad coordinates or at 0,0 (skipped): {summary.invalid}</li>}

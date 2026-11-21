@@ -15,6 +15,7 @@ import { arePopupsEnabled, enableShapePopups } from '../map/shapesLayer'
 import { setPickHandler, type PickKind } from '../map/pickMode'
 import { enableDrag, showEditItem } from '../map/Edititemlayer'
 import CountrySelect from './CountrySelect'
+import IconPicker from './IconPicker'
 import type { EventType, LocationType, MapEvent, MapLocation, Weapon } from '../types'
 
 interface Props {
@@ -39,6 +40,7 @@ interface Draft {
   name: string // a base's name / an event's title
   typeCode: string // bases: 'air_defence'…
   weaponId: number | null // air defence / radar sites: the system there
+  iconId: number | null // bases: its own picture (null = the icon of its type)
   eventTypeId: number // events
   country: string
   description: string
@@ -109,14 +111,14 @@ export default function MapItemEditor({ map, locations, events, systems, default
         const l = locations.find((x) => x.id === id)
         if (!l) return
         open({
-          kind, id, lng: l.lng, lat: l.lat, name: l.name, typeCode: l.type_code, weaponId: l.weapon_id, eventTypeId: 0,
+          kind, id, lng: l.lng, lat: l.lat, name: l.name, typeCode: l.type_code, weaponId: l.weapon_id, iconId: l.icon_id ?? null, eventTypeId: 0,
           country: l.country_code, description: l.description ?? '', occurredAt: '',
         })
       } else {
         const e = events.find((x) => x.id === id)
         if (!e) return
         open({
-          kind, id, lng: e.lng, lat: e.lat, name: e.title, typeCode: '', weaponId: null, eventTypeId: e.event_type_id,
+          kind, id, lng: e.lng, lat: e.lat, name: e.title, typeCode: '', weaponId: null, iconId: null, eventTypeId: e.event_type_id,
           country: e.country_code ?? '', description: e.description ?? '', occurredAt: toLocalInput(e.occurred_at),
         })
       }
@@ -159,7 +161,7 @@ export default function MapItemEditor({ map, locations, events, systems, default
       const kind: PickKind = mode === 'placing-location' ? 'location' : 'event'
       open({
         kind, id: null, lng: e.lngLat.lng, lat: e.lngLat.lat, name: '',
-        typeCode: locationTypes[0]?.code ?? '', weaponId: null, eventTypeId: eventTypes[0]?.id ?? 0,
+        typeCode: locationTypes[0]?.code ?? '', weaponId: null, iconId: null, eventTypeId: eventTypes[0]?.id ?? 0,
         country: defaultCountry, description: '', occurredAt: toLocalInput(new Date().toISOString()),
       })
     }
@@ -179,7 +181,9 @@ export default function MapItemEditor({ map, locations, events, systems, default
       return
     }
     let image: string
-    if (draft.kind === 'location') {
+    if (draft.kind === 'location' && draft.iconId !== null) {
+      image = `file-icon-128-${draft.iconId}` // its own picture (loaded when needed, see fileIcons.ts)
+    } else if (draft.kind === 'location') {
       image = map.hasImage(`loc-${draft.typeCode}`) ? `loc-${draft.typeCode}` : 'loc-military_base'
     } else {
       const color = eventTypes.find((t) => t.id === draft.eventTypeId)?.color ?? '#E53935'
@@ -220,6 +224,7 @@ export default function MapItemEditor({ map, locations, events, systems, default
           type: draft.typeCode, name: draft.name.trim(), country_code: draft.country,
           description: draft.description.trim() || null, lat: draft.lat, lng: draft.lng,
           weapon_id: draft.weaponId,
+          icon_id: draft.iconId,
         }
         if (draft.id === null) await createLocation(input)
         else await updateLocation(draft.id, input)
@@ -366,6 +371,14 @@ export default function MapItemEditor({ map, locations, events, systems, default
               </select>
             )}
           </label>
+
+          {/* Bases: the type icon, or a picture of its own (from a KMZ, or uploaded here) */}
+          {draft.kind === 'location' && (
+            <div className="editor-field">
+              <span className="editor-field-name">Icon</span>
+              <IconPicker value={draft.iconId} onChange={(iconId) => update({ iconId })} noneLabel="Type icon" />
+            </div>
+          )}
 
           {/* Only for air defence and radar sites: which system is here (it decides the coverage ring) */}
           {draft.kind === 'location' && (draft.typeCode === 'air_defence' || draft.typeCode === 'radar') && (

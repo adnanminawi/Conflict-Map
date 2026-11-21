@@ -78,7 +78,13 @@ export async function setupLocationLayers(map: maplibregl.Map) {
     source: 'locations',
     filter: ['!', ['has', 'point_count']],
     layout: {
-      'icon-image': ['concat', 'loc-', ['get', 'type']],
+      // A base with its own icon from a KMZ → that picture (fileIcons.ts). Otherwise the icon of its type.
+      'icon-image': [
+        'case',
+        ['>', ['get', 'icon_id'], 0],
+        ['concat', 'file-icon-128-', ['to-string', ['get', 'icon_id']]],
+        ['concat', 'loc-', ['get', 'type']],
+      ],
       'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.06, 5, 0.1, 7, 0.16, 9, 0.22, 12, 0.27],
       'icon-allow-overlap': true, // show every base, even when they overlap
     },
@@ -140,6 +146,7 @@ export function showLocations(map: maplibregl.Map, locations: MapLocation[], sys
         country_code: l.country_code,
         description: l.description ?? '',
         system: l.weapon_id ? systems.get(l.weapon_id) ?? '' : '',
+        icon_id: l.icon_id ?? 0, // 0 = no icon of its own
       },
     })),
   })

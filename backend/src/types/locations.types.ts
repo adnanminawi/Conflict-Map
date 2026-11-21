@@ -1,7 +1,6 @@
 // One base / airport as returned to the map.
 export interface MapLocation {
   id: number;
-  weapon_id: number | null;
   name: string;
   country_code: string;
   description: string | null;
@@ -10,6 +9,8 @@ export interface MapLocation {
   type_code: string;
   type_name: string;
   icon: string;
+  weapon_id: number | null; // the defence system at this site (null = none)
+  icon_id: number | null; // the icon from its KMZ file (null = the icon of its type)
 }
 
 // What a KML import did (or would do, in a dry run).
@@ -25,24 +26,29 @@ export interface ImportSummary {
   guessed: number; // how many got their type from their name / folder (the rest: the chosen type)
   linked: number; // air defence / radar sites linked to their system by name (e.g. "ID" → Iron Dome)
   noSystem: number; // air defence / radar sites saved with no system (no name matched)
+  fileIcons: number; // sites that got the icon from their KMZ file
 }
 
 // What the admin sends to add or change one location on the map
 export interface SaveLocationInput {
   typeCode: string; // e.g. "air_defence"
-  weaponId: number | null;
   name: string;
   countryCode: string; // 2 letters, e.g. "IL"
   description: string | null;
   lat: number;
   lng: number;
+  weaponId: number | null;
+  iconId?: number | null; // a saved icon; null = the icon of its type; undefined = keep the one it has
 }
+
+// One location as the repository saves it (the type code already turned into its id)
 export interface LocationRow {
   typeId: number;
-  weaponId: number | null;
   name: string;
   countryCode: string;
   lng: number;
   lat: number;
   description: string | null;
+  weaponId: number | null;
+  iconId?: number | null; // its own icon (from a KMZ, or chosen by the admin); undefined = keep the one it has
 }
