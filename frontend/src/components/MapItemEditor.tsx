@@ -74,6 +74,11 @@ export default function MapItemEditor({ map, locations, events, systems, default
 
   const dirty = draft !== null && JSON.stringify(draft) !== original.current
 
+  // The Latitude / Longitude boxes. Kept as text while typing ("33." or "-" are fine half-way);
+  // the pin moves as soon as the text is a valid number.
+  const [latText, setLatText] = useState('')
+  const [lngText, setLngText] = useState('')
+
   function handleError(err: unknown) {
     setError(isUnauthorized(err) ? 'Your login has expired. Log in again on the admin page.' : getErrorMessage(err))
   }
@@ -210,6 +215,22 @@ export default function MapItemEditor({ map, locations, events, systems, default
   // Leaving the page: clean the map
   useEffect(() => () => showEditItem(map, null), [])
 
+  // ---------- Latitude and longitude boxes ----------
+  // (Hooks must all run before the "if (!active) return" below, every render, in the same order.)
+
+  const isLat = (n: number) => Number.isFinite(n) && n >= -90 && n <= 90
+  const isLng = (n: number) => Number.isFinite(n) && n >= -180 && n <= 180
+  const readNumber = (text: string) => (text.trim() === '' ? NaN : Number(text)) // empty is not 0
+
+  // The pin was dragged (or another item opened): write its place in the boxes.
+  // Not while typing: "33." is already 33, so the box keeps what the admin typed.
+  useEffect(() => {
+    if (!draft) return
+    if (readNumber(latText) !== draft.lat) setLatText(draft.lat.toFixed(5))
+    if (readNumber(lngText) !== draft.lng) setLngText(draft.lng.toFixed(5))
+  }, [draft?.lat, draft?.lng])
+
+
   // ---------- Save / delete ----------
 
   async function save() {
@@ -295,6 +316,37 @@ export default function MapItemEditor({ map, locations, events, systems, default
 
   const update = (change: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...change } : d))
 
+  // ---------- Latitude and longitude typed by hand (the helpers that use them are further down) ----------
+
+  // Moves the pin there, and the map too if the new place is off the screen
+  function moveTo(lat: number, lng: number) {
+    update({ lat, lng })
+    if (!map.getBounds().contains([lng, lat])) map.easeTo({ center: [lng, lat] })
+  }
+
+  function typeCoord(which: 'lat' | 'lng', text: string) {
+    // Pasted from Google Maps ("33.89380, 35.50180"): fill both boxes at once
+    const parts = text.split(',').map((p) => readNumber(p))
+    if (parts.length === 2 && isLat(parts[0]) && isLng(parts[1])) {
+      setLatText(String(parts[0]))
+      setLngText(String(parts[1]))
+      moveTo(parts[0], parts[1])
+      return
+    }
+    if (which === 'lat') setLatText(text)
+    else setLngText(text)
+    const value = readNumber(text)
+    if (which === 'lat' && isLat(value)) moveTo(value, draft!.lng)
+    if (which === 'lng' && isLng(value)) moveTo(draft!.lat, value)
+  }
+
+  // Wrong numbers can't be saved: the boxes would say one place and the pin another
+  const coordsError = !isLat(readNumber(latText))
+    ? 'Latitude must be a number between -90 and 90.'
+    : !isLng(readNumber(lngText))
+      ? 'Longitude must be a number between -180 and 180.'
+      : ''
+
   // The systems that fit this site's type (an air defence site → air defence systems; a radar site → radars)
   const fittingSystems = draft ? systems.filter((w) => w.type_code === draft.typeCode).sort((a, b) => a.name.localeCompare(b.name)) : []
 
@@ -343,7 +395,7 @@ export default function MapItemEditor({ map, locations, events, systems, default
       {mode === 'editing' && draft && (
         <div className="editor-section">
           <p className="editor-note">
-            {draft.id === null ? 'New' : 'Editing this'} {draft.kind === 'location' ? 'base' : 'event'}. Drag it on the map to move it.
+            {draft.id === null ? 'New' : 'Editing this'} {draft.kind === 'location' ? 'base' : 'event'}. Drag it on the map, or type where it is below.
           </p>
 
           <label>
@@ -415,14 +467,23 @@ export default function MapItemEditor({ map, locations, events, systems, default
             <textarea rows={2} value={draft.description} onChange={(e) => update({ description: e.target.value })} />
           </label>
 
-          {/* Where it is now; dragging updates it */}
-          <p className="editor-note editor-coords">
-            {draft.lat.toFixed(5)}, {draft.lng.toFixed(5)}
-          </p>
+          {/* Where it is: type it, paste "lat, lng" from Google Maps, or drag the pin (the boxes follow) */}
+          <div className="editor-coords">
+            <label>
+              Latitude
+              <input inputMode="decimal" value={latText} onChange={(e) => typeCoord('lat', e.target.value)} placeholder="33.89380" />
+            </label>
+            <label>
+              Longitude
+              <input inputMode="decimal" value={lngText} onChange={(e) => typeCoord('lng', e.target.value)} placeholder="35.50180" />
+            </label>
+          </div>
+          <p className="editor-note">Tip: paste "33.8938, 35.5018" from Google Maps into one box to fill both.</p>
+          {coordsError && <p className="error">{coordsError}</p>}
 
           {error && <p className="error">{error}</p>}
           <div className="editor-actions">
-            <button className="btn btn-small" onClick={save} disabled={busy || (draft.id !== null && !dirty)}>
+            <button className="btn btn-small" onClick={save} disabled={busy || coordsError !== '' || (draft.id !== null && !dirty)}>
               {busy ? 'Saving…' : 'Save'}
             </button>
             <button className="btn btn-small btn-ghost" onClick={cancel} disabled={busy}>
