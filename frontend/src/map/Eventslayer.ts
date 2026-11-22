@@ -1,5 +1,6 @@
-// Confirmed events (strikes, attacks…), drawn by the map itself with clustering, like the bases:
-// zoomed out, nearby events merge into a red circle with a number. Click it to zoom in; zoomed in, the pins appear.
+// Confirmed events (strikes, attacks…), drawn by the map itself, like the bases.
+// Every event shows on its own. With the Group button on (clusterControl.ts), nearby events merge into a red circle
+// with a number when zoomed out; click it to zoom in.
 import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
 import type { MapEvent } from '../types'
@@ -23,7 +24,8 @@ function eventPopup(event: MapEvent): HTMLElement {
 
 // Draws a map pin in one color (same shape as before: a drop with a white dot).
 // Drawn at double size (pixelRatio 2) so it stays sharp on phones and retina screens.
-function drawPin(color: string) {
+// Used by fileIcons.ts, which draws every picture the map asks for ("pin-#E53935" → a red pin).
+export function drawPin(color: string) {
   const w = 54
   const h = 82
   const canvas = document.createElement('canvas')
@@ -55,14 +57,45 @@ function drawPin(color: string) {
   return ctx.getImageData(0, 0, w, h)
 }
 
-export function setupEventLayers(map: maplibregl.Map) {
-  // 1. Pins are drawn when first needed, one per color ("pin-#E53935")
-  map.on('styleimagemissing', (e) => {
-    if (!e.id.startsWith('pin-') || map.hasImage(e.id)) return
-    map.addImage(e.id, drawPin(e.id.slice(4)), { pixelRatio: 2 })
-  })
+// A flame, drawn on a 24 × 24 grid (like an SVG icon)
+const FLAME = new Path2D(
+  'M12 3c1.5 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 0 2 1 3 2 3-.5-3-.5-5.5.5-8z',
+)
 
-  // 2. The data, with clustering on
+// Fires at sea (satellite): a round badge with a white flame, not a pin, so they don't look like a confirmed strike.
+// Centered on the spot. Drawn at double size like the pins. Used by fileIcons.ts ("fire-#FF6D00").
+export function drawFire(color: string) {
+  const size = 52
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+
+  // The badge: the type's color with a white ring
+  ctx.beginPath()
+  ctx.arc(26, 26, 23, 0, Math.PI * 2)
+  ctx.fillStyle = color
+  ctx.fill()
+  ctx.lineWidth = 3
+  ctx.strokeStyle = '#ffffff'
+  ctx.stroke()
+
+  // The flame: the 24-unit drawing made 1.75 times bigger and centered (24 × 1.75 = 42, (52 - 42) / 2 = 5)
+  ctx.translate(5, 5)
+  ctx.scale(1.75, 1.75)
+  ctx.fillStyle = '#ffffff'
+  ctx.fill(FLAME)
+
+  return ctx.getImageData(0, 0, size, size)
+}
+
+// Which picture each event gets: a fire badge for icon 'fire' (fires at sea), a pin for everything else
+const IS_FIRE: maplibregl.ExpressionSpecification = ['==', ['get', 'icon'], 'fire']
+
+export function setupEventLayers(map: maplibregl.Map) {
+  // 1. Pins are drawn when first needed, one per color ("pin-#E53935"): see enableFileIcons in fileIcons.ts
+
+  // 2. The data. Grouping starts off: the Group button turns it on (clusterControl.ts).
   map.addSource('events', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
@@ -96,16 +129,26 @@ export function setupEventLayers(map: maplibregl.Map) {
     paint: { 'text-color': '#ffffff' },
   })
 
-  // 4. Single events: a pin in the event type's color, its tip on the spot
+  // 4. Single events: a pin in the event type's color, its tip on the spot.
+  //    Fires at sea: the fire badge instead, its center on the spot.
   map.addLayer({
     id: 'events-pins',
     type: 'symbol',
     source: 'events',
     filter: ['!', ['has', 'point_count']],
     layout: {
-      'icon-image': ['concat', 'pin-', ['get', 'color']],
-      'icon-anchor': 'bottom',
-      'icon-allow-overlap': true, // clustering already keeps them apart
+      'icon-image': ['case', IS_FIRE, ['concat', 'fire-', ['get', 'color']], ['concat', 'pin-', ['get', 'color']]],
+      'icon-anchor': ['case', IS_FIRE, 'center', 'bottom'],
+      // The fire badge grows with the zoom: small when looking at the whole region, full size close up.
+      // (MapLibre wants ['zoom'] at the top of 'interpolate': the badge/pin choice goes in each step.)
+      'icon-size': [
+        'interpolate', ['linear'], ['zoom'],
+        3, ['case', IS_FIRE, 0.45, 1],
+        5, ['case', IS_FIRE, 0.6, 1],
+        7, ['case', IS_FIRE, 0.85, 1],
+        9, ['case', IS_FIRE, 1.15, 1],
+      ],
+      'icon-allow-overlap': true, // show every event, even when they overlap
     },
   })
 
@@ -148,7 +191,7 @@ export function showEvents(map: maplibregl.Map, events: MapEvent[]) {
     features: events.map((e) => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [e.lng, e.lat] },
-      properties: { id: e.id, color: e.color ?? DEFAULT_COLOR },
+      properties: { id: e.id, color: e.color ?? DEFAULT_COLOR, icon: e.icon },
     })),
   })
 }
