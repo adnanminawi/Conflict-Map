@@ -9,8 +9,6 @@ interface Props {
   selectedId: number | null // the system whose coverage is shown
   onSelect: (id: number | null) => void
   loading: boolean // the coverage is being calculated
-  allOn: boolean // "Show all together" is on
-  onToggleAll: () => void
   placed: PlacedWeapon[] // systems the visitor placed by hand
   placing: Weapon | null
   onPlace: (w: Weapon) => void
@@ -38,7 +36,7 @@ function countriesOf(systems: Weapon[]) {
 
 // The box under the weapons: click a system to see where its sites cover, or place one anywhere.
 export default function DefencePanel(props: Props) {
-  const { systems, colorOf, sitesOf, selectedId, onSelect, loading, allOn, onToggleAll, placed, placing, onPlace, onCancelPlacing, onRemove, onClearAll } = props
+  const { systems, colorOf, sitesOf, selectedId, onSelect, loading, placed, placing, onPlace, onCancelPlacing, onRemove, onClearAll } = props
   const [open, setOpen] = useState(true)
 
   // Interceptors first, radars after, each shortest range first
@@ -86,19 +84,11 @@ export default function DefencePanel(props: Props) {
                   </button>
                 </div>
               ) : (
-                systems.length > 0 && <p className="reach-hint">Choose a system to see where its sites cover, or place it anywhere.</p>
+                systems.length > 0 && (
+                  <p className="reach-hint">Click an air defence site on the map to see its range, choose a system to see all its sites, or place one anywhere.</p>
+                )
               )}
               {systems.length === 0 && <p className="reach-hint">No air defence listed for this country yet.</p>}
-
-              {/* Every system of this country at once, each in its color (radars dashed) */}
-              {systems.length > 1 && (
-                <div className="reach-border">
-                  <button type="button" className={allOn ? 'reach-toggle on' : 'reach-toggle'} aria-pressed={allOn} onClick={onToggleAll} disabled={loading}>
-                    {allOn && loading ? 'Drawing…' : allOn ? 'Hide all' : 'Show all together'}
-                  </button>
-                  {allOn && <p className="reach-hint">Solid lines intercept, dashed lines are radars. Click a system to see it alone.</p>}
-                </div>
-              )}
 
               <div className="reach-list">
                 {groups
@@ -107,7 +97,7 @@ export default function DefencePanel(props: Props) {
                     <div key={g.title} className="reach-group">
                       <div className="key-group-name">{g.title}</div>
                       {g.items.map((w) => {
-                        const selected = selectedId === w.id || allOn
+                        const selected = selectedId === w.id
                         const sites = sitesOf(w)
                         return (
                           // A row, not a button: it holds its own "Place it" button

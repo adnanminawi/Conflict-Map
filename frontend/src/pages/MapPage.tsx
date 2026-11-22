@@ -6,7 +6,7 @@ import { fetchLocations } from '../api/locations'
 import { fetchLayers } from '../api/layers'
 import { fetchAlerts } from '../api/alerts'
 import { TOKEN_KEY } from '../api/client'
-import { setupLocationLayers, showLocations } from '../map/locationsLayer'
+import { setBaseClickHandler, setupLocationLayers, showLocations } from '../map/locationsLayer'
 import { setupEventLayers, showEvents } from '../map/Eventslayer'
 import { arePopupsEnabled, enableShapePopups, setupShapeLayers, showShapes } from '../map/shapesLayer'
 import { setupAlertLayers, showAlerts, ALERT_MINUTES } from '../map/alertsLayer'
@@ -38,7 +38,7 @@ import { fetchWeapons } from '../api/weapons'
 import { rangeBounds, setupWeaponLayers, showWeapons, type PlacedWeapon } from '../map/weaponsLayer'
 import WeaponsPanel from '../components/WeaponsPanel'
 import DefencePanel from '../components/Defencepanel'
-import { computeCoverage, coverageBounds, defenceColor as shadeOf, DEFENCE_TYPES, setupDefenceLayers, showCoverages, startRadarSweep, type CoverageShape } from '../map/Defencelayer'
+import { computeCoverage, coverageBounds, defenceColor as shadeOf, DEFENCE_TYPES, setupDefenceLayers, showCoverages, startRadarSweep } from '../map/Defencelayer'
 import NewsPanel from '../components/Newspanel'
 import type { AlertsResponse, MapEvent, MapLayer, MapLocation, Weapon } from '../types'
 
@@ -96,7 +96,7 @@ export default function MapPage() {
 
   const [newsSeenAt, setNewsSeenAt] = useState(() => Date.now()) // "new" = arrived after this time
   const [defenceId, setDefenceId] = useState<number | null>(null) // the air defence system whose coverage is shown
-  const [defenceAll, setDefenceAll] = useState(false) // "Show all together": every system of the country at once
+  const [siteRangeId, setSiteRangeId] = useState<number | null>(null) // the base clicked on the map (its range shows if it's an air defence site)
   const [coverageLoading, setCoverageLoading] = useState(false)
 
   const [reachOn, setReachOn] = useState(false) // "reach from the border" of the selected country
@@ -289,49 +289,51 @@ export default function MapPage() {
     showAlerts(map, { ...alerts, alerts: alerts.alerts.filter((a) => types.includes(a.type)) })
   }, [map, alerts, visible, country])
 
-  // Air defence coverage: one chosen system, or all the country's systems together.
-  // Each system's range around all its sites, merged into one shape.
+  // The air defence site the visitor clicked on the map, and its system (null = not an air defence site)
+  const rangeSite = siteRangeId === null ? undefined : locations.find((l) => l.id === siteRangeId)
+  const rangeSystem = rangeSite?.weapon_id ? defenceWeapons.find((w) => w.id === rangeSite.weapon_id) : undefined
+
+  // A click on an air defence site replaces the system chosen in the Air defence box (one range at a time)
+  useEffect(() => {
+    if (rangeSystem) setDefenceId(null)
+  }, [siteRangeId])
+
+  // Air defence range on the map: the clicked site alone, or every site of the system chosen in the box.
   useEffect(() => {
     if (!map) return
-    const chosen = defenceAll
-      ? defenceWeapons.filter((w) => w.country_code === country)
-      : defenceWeapons.filter((w) => w.id === defenceId)
-    if (chosen.length === 0) {
+    // Which system, and from which points
+    let system: Weapon | undefined
+    let sites: [number, number][] = []
+    if (rangeSite && rangeSystem) {
+      system = rangeSystem
+      sites = [[rangeSite.lng, rangeSite.lat]]
+    } else if (defenceId !== null) {
+      system = defenceWeapons.find((w) => w.id === defenceId)
+      sites = locations.filter((l) => l.weapon_id === defenceId).map((l) => [l.lng, l.lat])
+    }
+    if (!system || sites.length === 0) {
       showCoverages(map, [])
       return
     }
+    const chosen = system // a const copy: TypeScript knows it's set inside the .then() below
     let cancelled = false // a late answer for an old choice is ignored
     setCoverageLoading(true)
 
-    // Radars also get the radar look: rings and a turning beam around each radar site
-    const radars = chosen
-      .filter((w) => w.type_code === 'radar')
-      .flatMap((w) =>
-        locations
-          .filter((l) => l.weapon_id === w.id)
-          .map((l) => ({ center: [l.lng, l.lat] as [number, number], km: w.range_km, color: defenceColor(w) })),
-      )
-    const stopSweep = startRadarSweep(map, radars)
-
-    Promise.all(
-      // Biggest range first: drawn underneath, so the smaller ones stay visible on top
-      [...chosen]
-        .sort((a, b) => b.range_km - a.range_km)
-        .map(async (system): Promise<CoverageShape | null> => {
-          const sites = locations.filter((l) => l.weapon_id === system.id).map((l) => [l.lng, l.lat] as [number, number])
-          const coverage = await computeCoverage(sites, system.range_km)
-          const label = `${system.name} · ${system.range_km.toLocaleString()} km`
-          return coverage && { coverage, color: defenceColor(system), label, dashed: system.type_code === 'radar' }
-        }),
+    // Radars also get the radar look: rings and a turning beam around each site
+    const color = defenceColor(chosen)
+    const stopSweep = startRadarSweep(
+      map,
+      chosen.type_code === 'radar' ? sites.map((center) => ({ center, km: chosen.range_km, color })) : [],
     )
-      .then((results) => {
-        if (cancelled) return
-        const shapes = results.filter((r): r is CoverageShape => r !== null)
-        showCoverages(map, shapes)
-        if (shapes.length > 0) {
-          const padding = window.innerWidth > 600 ? { top: 40, bottom: 40, left: 40, right: rightRoom() } : 30
-          map.fitBounds(coverageBounds(shapes.map((s) => s.coverage)), { padding, duration: 800 })
-        }
+
+    computeCoverage(sites, chosen.range_km)
+      .then((coverage) => {
+        if (cancelled || !coverage) return
+        const label = `${chosen.name} · ${chosen.range_km.toLocaleString()} km`
+        showCoverages(map, [{ coverage, color, label, dashed: chosen.type_code === 'radar' }])
+        // Zoom so the whole range is visible
+        const padding = window.innerWidth > 600 ? { top: 40, bottom: 40, left: 40, right: rightRoom() } : 30
+        map.fitBounds(coverageBounds([coverage]), { padding, duration: 800 })
       })
       .catch((err) => console.error('Could not draw the coverage', err))
       .finally(() => !cancelled && setCoverageLoading(false))
@@ -339,7 +341,17 @@ export default function MapPage() {
       cancelled = true
       stopSweep()
     }
-  }, [map, defenceId, defenceAll, country, locations, weapons])
+  }, [map, defenceId, siteRangeId, country, locations, weapons])
+
+  // Clicking a base on the map opens its popup. If it's an air defence site, its range shows (effect above)
+  // until the popup closes.
+  useEffect(() => {
+    setBaseClickHandler((id, popup) => {
+      setSiteRangeId(id)
+      popup.on('close', () => setSiteRangeId((current) => (current === id ? null : current))) // another site may be open by now
+    })
+    return () => setBaseClickHandler(null)
+  }, [])
 
   // Placed weapons: the newest one's ring grows once
   useEffect(() => {
@@ -392,7 +404,7 @@ export default function MapPage() {
     setReachOn(false) // the reach belongs to one country
     setReachError('')
     setDefenceId(null) // so does the air defence coverage
-    setDefenceAll(false)
+    setSiteRangeId(null)
     setHiddenSides([]) // each country starts with all its sides shown
     setHiddenLayers([]) // and all its layers
     if (!map) return
@@ -413,7 +425,6 @@ export default function MapPage() {
     setReachOn(false)
     setReachError('')
     setDefenceId(null)
-    setDefenceAll(false)
   }
 
   // A page of the side panel was chosen
@@ -511,13 +522,8 @@ export default function MapPage() {
           sitesOf={sitesOf}
           selectedId={defenceId}
           onSelect={(id) => {
-            setDefenceAll(false) // one system: leave "all together"
+            setSiteRangeId(null) // a system from the box replaces the site clicked on the map
             setDefenceId(id)
-          }}
-          allOn={defenceAll}
-          onToggleAll={() => {
-            setDefenceId(null)
-            setDefenceAll((on) => !on)
           }}
           loading={coverageLoading}
           placed={placed.filter((p) => isDefence(p.weapon))}
