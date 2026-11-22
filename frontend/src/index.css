@@ -1710,8 +1710,18 @@ textarea {
   min-width: 0;
 }
 
-/* Map editor for bases & events: the coordinates under the form */
+/* Map editor for bases & events: Latitude and Longitude side by side */
 .editor-coords {
+  display: flex;
+  gap: 8px;
+}
+
+.editor-coords label {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-coords input {
   font-variant-numeric: tabular-nums;
 }
 
