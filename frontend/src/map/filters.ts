@@ -3,6 +3,7 @@ import type { Feature, Geometry, Position } from 'geojson'
 import type { AlertType, MapEvent, MapLayer, MapLocation } from '../types'
 
 // ---------- Show / hide ----------
+export const ALWAYS_LISTED = ['US', 'RU', 'TR', 'UA']
 
 export type Category =
   | 'rockets'
@@ -95,7 +96,7 @@ export function countryName(code: string): string {
 
 // The tabs: every country that has bases, events or frontlines, plus Israel for the alerts. Sorted by name.
 export function findCountries(locations: MapLocation[], events: MapEvent[], layers: MapLayer[]): string[] {
-  const codes = new Set<string>([ALERTS_COUNTRY])
+  const codes = new Set<string>([ALERTS_COUNTRY, ...ALWAYS_LISTED])
   for (const item of [...locations, ...events, ...layers]) {
     if (item.country_code) codes.add(item.country_code)
   }
