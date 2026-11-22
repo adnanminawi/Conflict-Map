@@ -25,6 +25,13 @@ const ICONS: Record<string, string> = {
   missile_base: missileBaseIcon,
 }
 
+// Called after a visitor clicks a base and its popup opens. MapPage uses it to show an air defence site's range,
+// and listens to the popup's 'close' to hide it again.
+let baseClickHandler: ((id: number, popup: maplibregl.Popup) => void) | null = null
+export function setBaseClickHandler(handler: typeof baseClickHandler) {
+  baseClickHandler = handler
+}
+
 // Clickable layers. shapesLayer.ts and alertsLayer.ts skip clicks on these, so a click on a base doesn't also open a frontline's popup.
 const LOCATION_LAYERS = ['locations-clusters', 'locations-icons']
 
@@ -115,10 +122,11 @@ export async function setupLocationLayers(map: maplibregl.Map) {
     const pick = getPickHandler()
     if (pick) return pick('location', p.id)
     if (!arePopupsEnabled()) return
-    new maplibregl.Popup({ offset: 14 })
+    const popup = new maplibregl.Popup({ offset: 14 })
       .setLngLat((base.geometry as GeoJSON.Point).coordinates as [number, number])
       .setDOMContent(buildPopup(p.name, p.type_name, [p.system || null, p.country_code, p.description]))
       .addTo(map)
+    baseClickHandler?.(p.id, popup)
   })
 
   // 8. Hand cursor over clusters and bases
