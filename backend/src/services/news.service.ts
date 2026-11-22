@@ -1,11 +1,16 @@
 // news: business logic. Never touches req/res.
 import { BLOCK_WORDS, KEYWORDS, type NewsFeed } from '../config/newsFeeds';
+import { countriesIn } from '../utils/newsCountries';
 import * as newsRepository from '../repositories/news.repository';
 import { AppError } from '../utils/AppError';
 import type { NewsStatus } from '../types/news.types';
 
+const MAX_AGE_DAYS = 1; // older items are skipped: only the last 24 hours, it's a live map
 
-const MAX_AGE_DAYS = 1; // older items are skipped, so the first run doesn't publish last week's news
+// For the site: the latest published news (lang = null → both languages, country = null → every country)
+export async function getNews(lang: 'en' | 'ar' | null, country: string | null) {
+  return newsRepository.findPublished(lang, country);
+}
 
 // What we use from one feed item (rss-parser gives these fields)
 export interface FeedItem {
@@ -14,26 +19,6 @@ export interface FeedItem {
   contentSnippet?: string; // the summary without HTML tags
   isoDate?: string; // the date, already as '2026-11-06T13:20:00.000Z'
 }
-
-// For the site: the latest published news (lang = null → both languages)
-export async function getNews(lang: 'en' | 'ar' | null) {
-  return newsRepository.findPublished(lang);
-}
-
-export async function getAdminNews() {
-  return newsRepository.findForAdmin();
-}
-
-export async function setNewsStatus(id: number, status: NewsStatus) {
-  const changed = await newsRepository.updateStatus(id, status);
-  if (changed === 0) throw AppError.notFound('News not found');
-}
-
-export async function deleteNews(id: number) {
-  const deleted = await newsRepository.deleteById(id);
-  if (deleted === 0) throw AppError.notFound('News not found');
-}
-
 
 // True if the text is about the conflict: has a keyword and no block word
 export function isRelevant(text: string, lang: 'en' | 'ar'): boolean {
@@ -55,10 +40,7 @@ export async function saveFeedItems(feed: NewsFeed, items: FeedItem[]): Promise<
 
     // Without a title or a link there's nothing to show or click
     if (!title || !url || url.length > 700) continue; // 700 = the size of the url column
-    if (url.includes('/opinions/')) continue; // opinion pieces aren't news
-
-    // Without a title or a link there's nothing to show or click
-    if (!title || !url || url.length > 700) continue; // 700 = the size of the url column
+    if (url.includes('/opinions/') || url.includes('/opinion/')) continue; // opinion pieces aren't news (Al Jazeera: /opinions/, NYT: /opinion/)
 
     const date = item.isoDate ? new Date(item.isoDate) : new Date();
     const publishedAt = isNaN(date.getTime()) ? new Date() : date; // a broken date → use now
@@ -73,8 +55,39 @@ export async function saveFeedItems(feed: NewsFeed, items: FeedItem[]): Promise<
       sourceName: feed.sourceName,
       lang: feed.lang,
       publishedAt,
+      countryCodes: countriesIn(`${title} ${summary}`, feed.lang),
     });
     if (isNew) saved++;
   }
   return saved;
+}
+
+// Gives every saved item its countries again (after the words in COUNTRY_WORDS change). Returns how many changed.
+export async function retagAllNews(): Promise<number> {
+  let changed = 0;
+  for (const item of await newsRepository.findAllTexts()) {
+    const codes = countriesIn(`${item.title} ${item.summary}`, item.lang);
+    if (codes.join() !== item.country_codes.join()) {
+      await newsRepository.updateCountries(item.id, codes);
+      changed++;
+    }
+  }
+  return changed;
+}
+
+// Admin: the list, with hidden items too
+export async function getAdminNews() {
+  return newsRepository.findForAdmin();
+}
+
+// Admin: hide ('draft') or show again ('published')
+export async function setNewsStatus(id: number, status: NewsStatus) {
+  const changed = await newsRepository.updateStatus(id, status);
+  if (changed === 0) throw AppError.notFound('News not found');
+}
+
+// Admin: delete. Careful: if the article is still in the feed, it comes back within 10 minutes. Hide it instead.
+export async function deleteNews(id: number) {
+  const deleted = await newsRepository.deleteById(id);
+  if (deleted === 0) throw AppError.notFound('News not found');
 }

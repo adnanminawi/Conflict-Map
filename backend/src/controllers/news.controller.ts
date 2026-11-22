@@ -4,17 +4,25 @@ import * as newsService from '../services/news.service';
 import { AppError } from '../utils/AppError';
 import type { NewsStatus } from '../types/news.types';
 
+// GET /api/news             → the latest 50, both languages, every country
+// GET /api/news?lang=ar     → Arabic only ('en' → English only)
+// GET /api/news?country=YE  → only news about Yemen (both can be used together)
 export async function getNews(req: Request, res: Response, next: NextFunction) {
   try {
     const lang = req.query.lang;
     if (lang !== undefined && lang !== 'en' && lang !== 'ar') {
       throw AppError.badRequest('lang must be en or ar');
     }
-    res.json(await newsService.getNews(lang ?? null));
+    const country = req.query.country;
+    if (country !== undefined && (typeof country !== 'string' || !/^[A-Z]{2}$/.test(country))) {
+      throw AppError.badRequest('country must be a 2-letter code like YE');
+    }
+    res.json(await newsService.getNews(lang ?? null, country ?? null));
   } catch (err) {
     next(err);
   }
 }
+
 const STATUSES: NewsStatus[] = ['draft', 'published'];
 
 // GET /api/news/admin  (admin only) — published and hidden

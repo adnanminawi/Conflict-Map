@@ -64,6 +64,10 @@ export default function MapPage() {
   // What the visitor chose (reset on every visit)
   const [country, setCountry] = useState(ALL)
   const [visible, setVisible] = useState<Visible>(ALL_VISIBLE)
+  // News: loaded once here, shown short on the Map page and in full on the News page.
+  // Only the selected country's news ("All countries" → all of it).
+  const [newsLang, setNewsLang] = useState<NewsLang>('all')
+  const { news, error: newsError, loaded: newsLoaded } = useNews(newsLang, country === ALL ? undefined : country)
 
   // The ruler button (measure distance). Kept so placing a weapon can close it.
   const measureRef = useRef<MeasureControl | null>(null)
@@ -90,9 +94,6 @@ export default function MapPage() {
   // ("Weapon reach" shows the weapons and air defence boxes; leaving it clears what they drew)
   const [view, setView] = useState<View>('map')
 
-  // News: loaded once here, shown short on the Map page and in full on the News page
-  const [newsLang, setNewsLang] = useState<NewsLang>('all')
-  const { news, error: newsError, loaded: newsLoaded } = useNews(newsLang)
   const [newsSeenAt, setNewsSeenAt] = useState(() => Date.now()) // "new" = arrived after this time
   const [defenceId, setDefenceId] = useState<number | null>(null) // the air defence system whose coverage is shown
   const [defenceAll, setDefenceAll] = useState(false) // "Show all together": every system of the country at once
@@ -449,6 +450,10 @@ export default function MapPage() {
     .pop()
   const newNews = view === 'news' ? 0 : news.filter((n) => new Date(n.published_at).getTime() > newsSeenAt).length
 
+  // News titles follow the country: "Latest from Yemen", or "Latest news" for all countries
+  const newsTitle = country === ALL ? 'Latest news' : `Latest from ${countryName(country)}`
+  const newsEmpty = country === ALL ? 'No news in the last day.' : `No news about ${countryName(country)} in the last day.`
+
   // What the side panel shows under the country picker, for each page
   let page
   if (view === 'map') {
@@ -462,7 +467,8 @@ export default function MapPage() {
               : 'No frontlines drawn for this country yet.'}
         </p>
         <NewsPanel
-          title="Latest news" // the news isn't sorted by country, so it doesn't say "from Yemen"
+          title={newsTitle}
+          emptyText={newsEmpty}
           news={news}
           error={newsError}
           loaded={newsLoaded}
@@ -479,7 +485,9 @@ export default function MapPage() {
       .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
     page = <EventsFeed events={shown} onPick={showEvent} />
   } else if (view === 'news') {
-    page = <NewsPanel title="Latest news" news={news} error={newsError} loaded={newsLoaded} lang={newsLang} onLang={setNewsLang} />
+    page = (
+      <NewsPanel title={newsTitle} emptyText={newsEmpty} news={news} error={newsError} loaded={newsLoaded} lang={newsLang} onLang={setNewsLang} />
+    )
   } else {
     page = (
       <>

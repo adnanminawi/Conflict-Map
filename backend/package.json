@@ -13,7 +13,8 @@
     "telegram:login": "tsx scripts/telegramLogin.ts",
     "test:alerts": "tsx scripts/testAlertParser.ts",
     "copy:mysql-to-postgres": "tsx scripts/copyMysqlToPostgres.ts",
-    "import:borders": "tsx scripts/importCountryBorders.ts"
+    "import:borders": "tsx scripts/importCountryBorders.ts",
+    "tag:news": "tsx scripts/tagNews.ts"
   },
   "dependencies": {
     "@tmcw/togeojson": "^5.8.1",
