@@ -22,8 +22,8 @@ export async function findConfirmedSince(since: Date): Promise<PublicEvent[]> {
   return rows;
 }
 
-// Inserts one event and returns its new id.
-export async function insert(input: CreateEventInput, createdBy: number): Promise<number> {
+// Inserts one event and returns its new id. createdBy = the admin, or null when added automatically (satellite).
+export async function insert(input: CreateEventInput, createdBy: number | null): Promise<number> {
   const { rows } = await db.query<{ id: number }>(
     `INSERT INTO events
        (event_type_id, title, description, occurred_at, geom, location_id, country_code, status, created_by)
@@ -61,10 +61,10 @@ export async function findRecentForAdmin(status?: EventStatus): Promise<AdminEve
   const { rows } = await db.query<AdminEvent>(
     `SELECT e.id, e.title, e.occurred_at, e.status,
             t.name AS type_name,
-            a.username AS created_by_username
+            COALESCE(a.username, 'Satellite (automatic)') AS created_by_username
        FROM events e
        JOIN event_types t ON t.id = e.event_type_id
-       JOIN admins a ON a.id = e.created_by
+       LEFT JOIN admins a ON a.id = e.created_by -- LEFT: satellite events have no admin and must still be listed
       ${where}
       ORDER BY e.occurred_at DESC
       LIMIT 100`,

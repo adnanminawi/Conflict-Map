@@ -3,6 +3,7 @@ import { app } from './app';
 import { db, checkDbConnection } from './config/db';
 import { startTelegramAlerts } from './listeners/telegramAlerts';
 import { startNewsFeeds } from './listeners/newsFeeds';
+import { startSeaFires } from './listeners/seaFires';
 
 async function start() {
   try {
@@ -20,8 +21,13 @@ async function start() {
 
   // Siren alerts from Telegram. If it fails, the rest of the API keeps working.
   startTelegramAlerts().catch((err) => console.error('Telegram alerts could not start:', err.message));
+
+  // News from RSS feeds. Each feed's errors are caught inside, so this never stops the API.
   startNewsFeeds();
-  
+
+  // Fires at sea seen by satellite (NASA FIRMS). Off without FIRMS_MAP_KEY. Its errors are caught inside too.
+  startSeaFires();
+
   const shutdown = (signal: string) => {
     console.log(`${signal} received, shutting down`);
     server.close(async () => {
