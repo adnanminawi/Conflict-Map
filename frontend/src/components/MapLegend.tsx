@@ -15,7 +15,7 @@ interface Props {
 
 // The map key: a small see-through box in the bottom-left corner of the map.
 // It explains the frontline colors, and each checkbox shows or hides that side or layer.
-export default function MapLegend({ sides, allCountries, hiddenSides, onToggleSide, hiddenLayers, onToggleLayer, showSirens, visible, onToggle }: Props) {
+export default function MapLegend({ sides, allCountries, hiddenSides, onToggleSide, hiddenLayers, onToggleLayer, }: Props) {
   // Open on computers, closed on phones (it would cover the map)
   const [open, setOpen] = useState(() => window.innerWidth > 600)
 
