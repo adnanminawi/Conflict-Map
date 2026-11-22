@@ -26,10 +26,12 @@ import {
   type Visible,
 } from '../map/filters'
 import MapLegend from '../components/MapLegend'
+import Sidebar, { type View } from '../components/Sidebar'
+import EventsFeed from '../components/EventsFeed'
+import { useNews, type NewsLang } from '../hooks/useNews'
 import { MeasureControl } from '../map/Measuretool'
 import { ClusterControl } from '../map/clusterControl'
 import { enableFileIcons } from '../map/fileIcons'
-import CountryTabs from '../components/CountryTabs'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { MAPTILER_KEY, MAP_STYLE, START_CENTER, START_ZOOM } from '../map/config'
 import { fetchWeapons } from '../api/weapons'
@@ -78,19 +80,20 @@ export default function MapPage() {
   const [closeItemEditor, setCloseItemEditor] = useState(0) // goes up when the ruler or a weapon needs map clicks
   const isAdmin = localStorage.getItem(TOKEN_KEY) !== null
 
-  // Is the news box (right side) open? Read when zooming, so the map leaves room for it.
-  // A ref, not state: changing it doesn't need to redraw the page.
-  const newsOpen = useRef(false)
-  const testModeRef = useRef(false) // while testing, the Air defence box is on the right
-  // Room to leave on the right when zooming to something: the right column + the zoom buttons.
-  // Admins always have the editor there (410 = its wider column).
-  const rightRoom = () => (isAdmin ? 410 : newsOpen.current || testModeRef.current ? 360 : 70)
+  // Room to leave on the right when zooming to something: the zoom buttons.
+  // Admins have the editor there too (410 = its wider column).
+  const rightRoom = () => (isAdmin ? 410 : 70)
 
   const [weapons, setWeapons] = useState<Weapon[]>([])
 
-  // "Test the weapon reach" mode: the weapons and air defence boxes show, the news hides
-  const [testMode, setTestMode] = useState(false)
-  testModeRef.current = testMode
+  // The page open in the side panel: Map, Events, News or Weapon reach
+  // ("Weapon reach" shows the weapons and air defence boxes; leaving it clears what they drew)
+  const [view, setView] = useState<View>('map')
+
+  // News: loaded once here, shown short on the Map page and in full on the News page
+  const [newsLang, setNewsLang] = useState<NewsLang>('all')
+  const { news, error: newsError, loaded: newsLoaded } = useNews(newsLang)
+  const [newsSeenAt, setNewsSeenAt] = useState(() => Date.now()) // "new" = arrived after this time
   const [defenceId, setDefenceId] = useState<number | null>(null) // the air defence system whose coverage is shown
   const [defenceAll, setDefenceAll] = useState(false) // "Show all together": every system of the country at once
   const [coverageLoading, setCoverageLoading] = useState(false)
@@ -240,7 +243,7 @@ export default function MapPage() {
           return
         }
         stop = showReach(map, reach)
-        const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: rightRoom() } : 30
+        const padding = window.innerWidth > 600 ? { top: 40, bottom: 40, left: 40, right: rightRoom() } : 30
         map.fitBounds(reachBounds(reach), { padding, duration: 800 })
       })
       .catch(() => !cancelled && setReachError('Could not draw the reach. Check your connection and try again.'))
@@ -325,7 +328,7 @@ export default function MapPage() {
         const shapes = results.filter((r): r is CoverageShape => r !== null)
         showCoverages(map, shapes)
         if (shapes.length > 0) {
-          const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 290, right: rightRoom() } : 30
+          const padding = window.innerWidth > 600 ? { top: 40, bottom: 40, left: 40, right: rightRoom() } : 30
           map.fitBounds(coverageBounds(shapes.map((s) => s.coverage)), { padding, duration: 800 })
         }
       })
@@ -362,7 +365,7 @@ export default function MapPage() {
       setPlaced((list) => [...list, { id, weapon, center }])
       setPlacing(null)
       // Show the whole reach: zoom so the circle fits (room for the box on the left and the zoom buttons on the right)
-      const padding = window.innerWidth > 600 ? { top: 80, bottom: 40, left: 280, right: rightRoom() } : 30
+      const padding = window.innerWidth > 600 ? { top: 40, bottom: 40, left: 40, right: rightRoom() } : 30
       map!.fitBounds(rangeBounds(center, weapon.range_km), { padding, duration: 800 })
     }
     function onKey(e: KeyboardEvent) {
@@ -397,20 +400,31 @@ export default function MapPage() {
       return
     }
     const box = countryBox(code, locations, events, layers)
-    // Leave room for the tabs (top), the box (left) and the zoom buttons (right). Phones: small margins.
-    const padding = window.innerWidth > 600 ? { top: 90, bottom: 40, left: 290, right: rightRoom() } : 40
+    // Leave room for the zoom buttons (right) and the editor for admins. Phones: small margins.
+    const padding = window.innerWidth > 600 ? { top: 40, bottom: 40, left: 40, right: rightRoom() } : 40
     if (box) map.fitBounds(box, { padding, maxZoom: 9 })
   }
 
-  // Leave "Test the weapon reach": clear everything it drew, the news comes back
+  // Leave "Weapon reach": clear everything it drew
   function closeTestMode() {
-    setTestMode(false)
     setPlacing(null)
     setPlaced([])
     setReachOn(false)
     setReachError('')
     setDefenceId(null)
     setDefenceAll(false)
+  }
+
+  // A page of the side panel was chosen
+  function changeView(next: View) {
+    if (view === 'reach' && next !== 'reach') closeTestMode()
+    if (next === 'news') setNewsSeenAt(Date.now()) // the visitor has seen them now
+    setView(next)
+  }
+
+  // Events page: fly to the event that was clicked
+  function showEvent(e: MapEvent) {
+    map?.flyTo({ center: [e.lng, e.lat], zoom: Math.max(map.getZoom(), 9) })
   }
 
   function toggle(category: Category) {
@@ -425,136 +439,144 @@ export default function MapPage() {
     setHiddenLayers((hidden) => (hidden.includes(name) ? hidden.filter((n) => n !== name) : [...hidden, name]))
   }
 
-  function showAll() {
-    setVisible(ALL_VISIBLE)
-    setHiddenSides([])
-    setHiddenLayers([])
-  }
-
   const countries = findCountries(locations, events, layers)
 
-  // Phones have no room on the right: the Air defence box stays on the left there
-  const narrow = window.innerWidth <= 600
-  const defencePanel = (
+  // The newest frontline date of the selected country, e.g. "21 November 2026"
+  const frontlineDate = layers
+    .filter((l) => country !== ALL && l.country_code === country)
+    .map((l) => l.snapshot_date)
+    .sort()
+    .pop()
+  const newNews = view === 'news' ? 0 : news.filter((n) => new Date(n.published_at).getTime() > newsSeenAt).length
+
+  // What the side panel shows under the country picker, for each page
+  let page
+  if (view === 'map') {
+    page = (
+      <>
+        <p className="side-note side-intro">
+          {country === ALL
+            ? 'Choose a country to see its frontlines.'
+            : frontlineDate
+              ? `Frontlines as of ${new Date(frontlineDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}. Areas are approximate and change often.`
+              : 'No frontlines drawn for this country yet.'}
+        </p>
+        <NewsPanel
+          title="Latest news" // the news isn't sorted by country, so it doesn't say "from Yemen"
+          news={news}
+          error={newsError}
+          loaded={newsLoaded}
+          lang={newsLang}
+          onLang={setNewsLang}
+          limit={5}
+          onShowAll={() => changeView('news')}
+        />
+      </>
+    )
+  } else if (view === 'events') {
+    const shown = events
+      .filter((e) => inCountry(e.country_code, country))
+      .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
+    page = <EventsFeed events={shown} onPick={showEvent} />
+  } else if (view === 'news') {
+    page = <NewsPanel title="Latest news" news={news} error={newsError} loaded={newsLoaded} lang={newsLang} onLang={setNewsLang} />
+  } else {
+    page = (
+      <>
+        <WeaponsPanel
+          weapons={attackWeapons.filter((w) => inCountry(w.country_code, country))}
+          placed={placed.filter((p) => !isDefence(p.weapon))}
+          placing={placing && !isDefence(placing) ? placing : null}
+          onPlace={setPlacing}
+          onCancelPlacing={() => setPlacing(null)}
+          onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
+          onClearAll={() => setPlaced((list) => list.filter((p) => isDefence(p.weapon)))}
+          reach={country === ALL ? null : { countryName: countryName(country), on: reachOn, loading: reachLoading, error: reachError }}
+          onToggleReach={() => setReachOn((on) => !on)}
+          onHoverWeapon={(km) => map && reachOn && highlightReach(map, km)}
+          showCountries={country === ALL}
+          onSelectCountry={selectCountry}
+        />
         <DefencePanel
-            systems={defenceWeapons.filter((w) => inCountry(w.country_code, country))}
-            colorOf={defenceColor}
-            sitesOf={sitesOf}
-            selectedId={defenceId}
-            onSelect={(id) => {
-              setDefenceAll(false) // one system: leave "all together"
-              setDefenceId(id)
-            }}
-            allOn={defenceAll}
-            onToggleAll={() => {
-              setDefenceId(null)
-              setDefenceAll((on) => !on)
-            }}
-            loading={coverageLoading}
-            placed={placed.filter((p) => isDefence(p.weapon))}
-            placing={placing && isDefence(placing) ? placing : null}
-            // The placed ring takes the system's color (the weapons layer colors rings by side_color)
-            onPlace={(w) => setPlacing({ ...w, side_color: defenceColor(w) })}
-            onCancelPlacing={() => setPlacing(null)}
-            onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
-            onClearAll={() => setPlaced((list) => list.filter((p) => !isDefence(p.weapon)))}
-            showCountries={country === ALL}
-            onSelectCountry={selectCountry}
-          />
-  )
+          systems={defenceWeapons.filter((w) => inCountry(w.country_code, country))}
+          colorOf={defenceColor}
+          sitesOf={sitesOf}
+          selectedId={defenceId}
+          onSelect={(id) => {
+            setDefenceAll(false) // one system: leave "all together"
+            setDefenceId(id)
+          }}
+          allOn={defenceAll}
+          onToggleAll={() => {
+            setDefenceId(null)
+            setDefenceAll((on) => !on)
+          }}
+          loading={coverageLoading}
+          placed={placed.filter((p) => isDefence(p.weapon))}
+          placing={placing && isDefence(placing) ? placing : null}
+          // The placed ring takes the system's color (the weapons layer colors rings by side_color)
+          onPlace={(w) => setPlacing({ ...w, side_color: defenceColor(w) })}
+          onCancelPlacing={() => setPlacing(null)}
+          onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
+          onClearAll={() => setPlaced((list) => list.filter((p) => !isDefence(p.weapon)))}
+          showCountries={country === ALL}
+          onSelectCountry={selectCountry}
+        />
+      </>
+    )
+  }
 
   return (
-    <>
-      <div ref={containerRef} className="map" />
+    <div className="app">
+      <Sidebar view={view} onView={changeView} newCount={newNews} countries={countries} country={country} onSelectCountry={selectCountry}>
+        {page}
+      </Sidebar>
 
-      <CountryTabs countries={countries} selected={country} onSelect={selectCountry} />
+      <div className="map-area">
+        <div ref={containerRef} className="map" />
 
-      {/* Left side: messages and the weapons box on top, the map key at the bottom.
-          They share the height of the screen, so they never cover each other. */}
-      <div className="map-side">
         {status && <div className="map-panel status">{status}</div>}
-        {testMode ? (
-          <>
-            {/* Test mode: a bar to leave it, then the two boxes */}
-            <div className="map-panel test-bar">
-              <span>Testing weapon reach</span>
-              <button type="button" className="test-close" onClick={closeTestMode} aria-label="Close the weapon reach test">
-                ×
-              </button>
-            </div>
-            <WeaponsPanel
-              weapons={attackWeapons.filter((w) => inCountry(w.country_code, country))}
-              placed={placed.filter((p) => !isDefence(p.weapon))}
-              placing={placing && !isDefence(placing) ? placing : null}
-              onPlace={setPlacing}
-              onCancelPlacing={() => setPlacing(null)}
-              onRemove={(id) => setPlaced((list) => list.filter((p) => p.id !== id))}
-              onClearAll={() => setPlaced((list) => list.filter((p) => isDefence(p.weapon)))}
-              reach={country === ALL ? null : { countryName: countryName(country), on: reachOn, loading: reachLoading, error: reachError }}
-              onToggleReach={() => setReachOn((on) => !on)}
-              onHoverWeapon={(km) => map && reachOn && highlightReach(map, km)}
-              showCountries={country === ALL}
-              onSelectCountry={selectCountry}
-            />
-            {narrow && defencePanel /* phones: no room on the right, it stays under the weapons */}
-          </>
-        ) : (
-          <div className="map-panel test-start">
-            <button
-              type="button"
-              className="btn btn-small"
-              onClick={() => {
-                newsOpen.current = false // the news hides: the map no longer leaves room for it
-                setTestMode(true)
-              }}
-            >
-              Test the weapon reach
-            </button>
-          </div>
-        )}
+
         <MapLegend
-          visible={visible}
-          onToggle={toggle}
-          onShowAll={showAll}
           sides={sidesInCountry(layers, country)}
+          allCountries={country === ALL}
           hiddenSides={hiddenSides}
           onToggleSide={toggleSide}
           hiddenLayers={hiddenLayers}
           onToggleLayer={toggleLayer}
-          autoFold={testMode && narrow} // phones: the two boxes need the room
+          showSirens={inCountry(ALERTS_COUNTRY, country)}
+          visible={visible}
+          onToggle={toggle}
         />
-      </div>
 
-      {/* Right side: the map editor (admins only) on top, the news under it. Same idea as the left side. */}
-      {/* Admins: a wider column, so the map editor has room */}
-      <div className={isAdmin ? 'map-side map-side-right with-editor' : 'map-side map-side-right'}>
+        {/* Right side: the map editors (admins only), left of the zoom buttons */}
         {isAdmin && map && (
-          <Suspense fallback={null}>
-            <MapItemEditor
-              map={map}
-              locations={locations}
-              events={events}
-              systems={defenceWeapons}
-              defaultCountry={country === ALL ? '' : country}
-              disabled={editingName !== null}
-              closeSignal={closeItemEditor}
-              onActiveChange={(on) => {
-                setItemEditorOn(on)
-                if (on) {
-                  setPlacing(null) // map clicks are for editing now
-                  measureRef.current?.stop()
-                }
-              }}
-              onHide={setHiddenItem}
-              onSaved={(kind) => (kind === 'location' ? loadLocations() : loadEvents())}
-            />
-            {/* One editor at a time: the frontline editor waits while bases & events are being edited */}
-            {!itemEditorOn && <MapEditor map={map} country={country} onEditingChange={setEditingName} onSaved={loadLayers} />}
-          </Suspense>
+          <div className="map-side map-side-right with-editor">
+            <Suspense fallback={null}>
+              <MapItemEditor
+                map={map}
+                locations={locations}
+                events={events}
+                systems={defenceWeapons}
+                defaultCountry={country === ALL ? '' : country}
+                disabled={editingName !== null}
+                closeSignal={closeItemEditor}
+                onActiveChange={(on) => {
+                  setItemEditorOn(on)
+                  if (on) {
+                    setPlacing(null) // map clicks are for editing now
+                    measureRef.current?.stop()
+                  }
+                }}
+                onHide={setHiddenItem}
+                onSaved={(kind) => (kind === 'location' ? loadLocations() : loadEvents())}
+              />
+              {/* One editor at a time: the frontline editor waits while bases & events are being edited */}
+              {!itemEditorOn && <MapEditor map={map} country={country} onEditingChange={setEditingName} onSaved={loadLayers} />}
+            </Suspense>
+          </div>
         )}
-        {/* While testing the weapon reach: the Air defence box takes the news' place */}
-        {testMode ? !narrow && defencePanel : <NewsPanel startClosed={isAdmin} onOpenChange={(open) => (newsOpen.current = open)} />}
       </div>
-    </>
+    </div>
   )
 }

@@ -36,105 +36,520 @@ textarea {
   height: 100%;
 }
 
-/* ---------- Map page overlays ---------- */
+/* ---------- Map page: red and white ----------
+   The side panel on the left, the map on the right. */
+:root {
+  --red: #c8102e;
+  --red-dark: #8f0b20;
+  --red-soft: #fdecee; /* the open menu item */
+  --ink: #1d2329; /* text */
+  --ink-2: #3f4a54; /* quieter text */
+  --ink-muted: #5b6670; /* dates, notes */
+  --line: #e3e7ea; /* lines between parts */
+  --line-strong: #b9c2c8; /* borders of fields */
+}
+
+.app {
+  display: flex;
+  height: 100%;
+  color: var(--ink);
+  background: #ffffff;
+}
+
+.map-area {
+  position: relative; /* the boxes on the map are placed inside it */
+  flex: 1;
+  min-width: 0;
+}
+
+/* Boxes on the map (the admin editors, the ruler hint, "Loading events…"): white with a red top line */
 .map-panel {
   position: absolute;
   z-index: 1;
-  background: rgba(14, 18, 23, 0.85);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  color: #e6e9ee;
+  color: var(--ink);
   font-size: 13px;
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-top: 3px solid var(--red);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(29, 35, 41, 0.2);
 }
 
-/* Small red teardrop, like the event markers (map key) */
-.legend-pin {
-  width: 12px;
-  height: 12px;
-  margin: 0 3px;
-  background: #e53935;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-}
-
-/* "Loading events…" / "Could not load events…": the first box on the left side */
-.status {
+/* "Loading events…" / "Could not load events…": top left of the map */
+.map-panel.status {
+  top: 12px;
+  left: 12px;
   padding: 8px 14px;
 }
 
-/* ---------- Left side of the map: weapons box on top, map key at the bottom ----------
-   One column for both, so they share the height and never cover each other. */
+/* Buttons on the map: red (main action), white with a border (ghost), red outline (delete).
+   ".map-area" in front: only here, the admin page keeps its own buttons. */
+.map-area .btn {
+  color: #ffffff;
+  background: var(--red);
+  border: 1px solid var(--red);
+  border-radius: 4px;
+}
+
+.map-area .btn:hover {
+  background: var(--red-dark);
+  border-color: var(--red-dark);
+}
+
+.map-area .btn-ghost {
+  color: var(--ink);
+  background: #ffffff;
+  border-color: var(--line-strong);
+}
+
+.map-area .btn-ghost:hover {
+  color: var(--ink);
+  background: #f4f5f6;
+  border-color: var(--ink-muted);
+}
+
+.map-area .btn-danger {
+  color: var(--red);
+  background: #ffffff;
+  border-color: var(--red);
+}
+
+.map-area .btn-danger:hover {
+  color: #ffffff;
+  background: var(--red);
+}
+
+.map-area .btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Error messages on the map */
+.map-area .error {
+  color: var(--red-dark);
+  background: var(--red-soft);
+  border: 1px solid #f3b5bf;
+  border-radius: 4px;
+}
+
+/* ---------- Side panel ---------- */
+.sidebar {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 4px solid var(--red);
+  border-right: 1px solid #d6dbdf;
+  font-size: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The menu: Map, Events, News, Weapon reach */
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.side-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 42px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.side-nav-item svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.side-nav-item:hover {
+  background: #f4f5f6;
+}
+
+/* The open page: red, with a red bar on its left */
+.side-nav-item.active {
+  font-weight: 700;
+  color: var(--red);
+  background: var(--red-soft);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+/* "4 new" next to News */
+.side-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--red);
+  border-radius: 10px;
+}
+
+/* Country picker */
+.side-country {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 20px 0;
+}
+
+.side-country-label {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.side-country select {
+  height: 38px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--red);
+  border-radius: 4px;
+}
+
+/* The chosen page */
+.side-body {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 16px;
+}
+
+/* The weapon reach and air defence boxes: part of the white panel here, not boxes floating on the map */
+.sidebar .map-panel {
+  position: static;
+  color: var(--ink);
+  font-size: 13px;
+  background: none;
+  backdrop-filter: none;
+  border: none;
+  border-radius: 0;
+}
+
+.sidebar .weapons-panel + .weapons-panel {
+  border-top: 1px solid var(--line);
+}
+
+.sidebar .weapons-panel .key-title {
+  padding: 14px 20px 8px;
+  font-size: 14px;
+  color: var(--red);
+}
+
+.side-section {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 0 0;
+}
+
+.side-section + .side-section {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.side-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+/* Section titles: small, bold, red */
+.side-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.side-section > .side-title {
+  padding: 0 20px;
+}
+
+/* "All news": a link-looking button */
+.side-link {
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--red);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.side-link:hover {
+  color: var(--red-dark);
+}
+
+.side-note {
+  margin: 8px 20px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.side-intro {
+  margin-top: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.side-error {
+  color: var(--red);
+}
+
+.news-langs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 20px 0;
+}
+
+.news-lang {
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.news-lang:hover {
+  border-color: var(--red);
+}
+
+.news-lang.active {
+  color: #ffffff;
+  background: var(--red);
+  border-color: var(--red);
+}
+
+/* News and events: one item per line, a thin line between them */
+.news-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.news-list li {
+  border-top: 1px solid var(--line);
+}
+
+.news-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  box-sizing: border-box; /* the padding stays inside the panel's width */
+  padding: 10px 20px;
+  font: inherit;
+  color: var(--ink);
+  text-align: start; /* Arabic items start on the right */
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.news-item:hover {
+  background: #f7f8f9;
+}
+
+.news-item:hover .news-title {
+  color: var(--red);
+}
+
+.news-title {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.news-meta {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* Events page: the event type under the title, with its map color */
+.event-type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.event-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Visible keyboard focus everywhere on the page */
+.side-nav-item:focus-visible,
+.side-link:focus-visible,
+.news-item:focus-visible,
+.news-lang:focus-visible,
+.side-country select:focus-visible,
+.map-key-fold:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
+}
+
+/* ---------- Map key: a small see-through box, bottom left of the map ---------- */
+.map-key {
+  position: absolute;
+  z-index: 1;
+  left: 12px;
+  bottom: 28px;
+  width: 235px;
+  max-height: calc(100% - 60px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 8px 12px 12px;
+  font-size: 13px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.75);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+  border-top: 3px solid var(--red);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(29, 35, 41, 0.2);
+}
+
+.map-key-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.map-key-fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.map-key-fold svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.map-key .side-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.map-key-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.map-key-sub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.map-key-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.map-key-row input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--red);
+}
+
+/* A side's layers: one step in */
+.map-key-layer {
+  padding-left: 23px;
+  font-size: 12px;
+}
+
+.map-key-layer.off {
+  opacity: 0.45;
+}
+
+/* The side's color, like its areas on the map */
+.map-key-area {
+  flex: none;
+  width: 20px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 1.5px solid;
+}
+
+/* ---------- Admin: the editors in a column on the right of the map, left of the zoom buttons ---------- */
 .map-side {
   position: absolute;
   z-index: 1;
   top: 12px;
   bottom: 28px;
-  left: 12px;
-  width: 248px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  pointer-events: none; /* the empty space between the boxes lets clicks go through to the map */
+  pointer-events: none; /* the empty space under the editor lets clicks go through to the map */
 }
 
 .map-side > * {
   pointer-events: auto;
 }
 
-.map-side .map-panel {
-  position: relative; /* inside the column, not placed on the map on their own */
-  flex-shrink: 0;
-}
-
-/* Short screen: the map key gets smaller first (it scrolls), so the weapons list keeps its 4 rows.
-   The weapons box only shrinks if it would take more than 60% of the height. */
-.map-side .weapons-panel {
-  max-height: 60%;
-}
-
-.map-side .map-legend {
-  flex-shrink: 1;
-  min-height: 0;
-}
-
-/* The map key stays at the bottom */
-.map-side .map-legend {
-  margin-top: auto;
-}
-
-/* Smaller screens: the country tabs are full width at the top, so the column starts under them */
-@media (max-width: 900px) {
-  .map-side {
-    top: 64px;
-  }
-}
-
-/* ---------- News (right side of the map) ---------- */
-/* The right column: left of the zoom buttons. Uses .map-side's rules (column, clicks go through the gaps). */
 .map-side.map-side-right {
-  left: auto;
   right: 52px;
-  width: 290px;
+  width: 340px;
 }
 
 /* The map editor inside the column: placed by the column, not on its own */
 .map-side-right .editor {
+  position: relative;
   top: auto;
   right: auto;
   width: auto;
-  max-height: 55%;
-}
-
-/* Admins: a wider column and a taller editor (the news starts closed under it). Not on phones: there the column is free. */
-@media (min-width: 601px) {
-  .map-side.map-side-right.with-editor {
-    width: 340px;
-  }
-}
-
-.map-side-right.with-editor .editor {
-  max-height: 78%;
+  max-height: 100%;
 }
 
 /* The editor's list of layers: one side, then its layers (name · Hide · Edit) */
@@ -151,7 +566,7 @@ textarea {
   margin-top: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #8b95a3;
+  color: var(--ink-2);
 }
 
 .editor-layer {
@@ -172,7 +587,7 @@ textarea {
 
 /* A hidden layer: greyed, so the admin sees at a glance what visitors don't */
 .editor-layer.hidden .editor-layer-name {
-  color: #8b95a3;
+  color: var(--ink-muted);
   text-decoration: line-through;
 }
 
@@ -181,139 +596,19 @@ textarea {
   font-size: 12px;
 }
 
-.news-panel {
-  display: flex;
-  flex-direction: column;
-  padding: 4px 0 8px;
-  box-sizing: border-box;
-}
-
-/* Open: takes the rest of the column's height and scrolls inside */
-.map-side .news-panel.open {
-  flex-shrink: 1;
-  min-height: 0;
-}
-
-.news-panel .key-title {
-  gap: 12px;
-}
-
-.news-langs {
-  display: flex;
-  gap: 4px;
-  padding: 0 14px 8px;
-}
-
-.news-lang {
-  padding: 3px 10px;
-  font: inherit;
-  font-size: 12px;
-  color: #8b95a3;
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.news-lang:hover {
-  color: #e6e9ee;
-}
-
-.news-lang.active {
-  color: var(--on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.news-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain; /* scrolling the list doesn't zoom the map behind */
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.news-list li + li {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.news-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 9px 14px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.news-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.news-item:focus-visible {
-  outline: 2px solid #e6e9ee;
-  outline-offset: -2px;
-}
-
-.news-title {
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.news-meta {
-  font-size: 11px;
-  color: #8b95a3;
-}
-
-/* Phones: the closed box sits under the zoom buttons; open, it covers the width of the screen */
-@media (max-width: 600px) {
-  .map-side.map-side-right {
-    top: 150px; /* under the zoom buttons and the ruler */
-    right: 10px;
-    width: auto;
-    align-items: flex-end;
-  }
-
-  .map-side-right .news-panel.open {
-    position: fixed;
-    top: 150px; /* under the zoom buttons and the ruler */
-    left: 12px;
-    right: 12px;
-    max-height: 70%;
-    z-index: 2;
-  }
-}
-
-/* Popups: dark like the boxes on the map (MapLibre makes them white by default).
+/* ---------- Popups on the map: white, with red links ----------
    Each rule starts with .maplibregl-popup so it wins over MapLibre's own CSS, which loads after this file. */
 .maplibregl-popup .maplibregl-popup-content {
-  padding: 10px 26px 10px 12px;
-  color: #e6e9ee;
-  background: rgba(14, 18, 23, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  padding: 10px 28px 10px 12px;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(29, 35, 41, 0.18);
 }
 
-.maplibregl-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
-.maplibregl-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
-.maplibregl-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
-  border-top-color: rgba(14, 18, 23, 0.96);
-}
-
-.maplibregl-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
-.maplibregl-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
-.maplibregl-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
-  border-bottom-color: rgba(14, 18, 23, 0.96);
-}
-
-.maplibregl-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
-  border-right-color: rgba(14, 18, 23, 0.96);
-}
-
-.maplibregl-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
-  border-left-color: rgba(14, 18, 23, 0.96);
+.maplibregl-popup .maplibregl-popup-content a {
+  color: var(--red);
 }
 
 .maplibregl-popup .maplibregl-popup-close-button {
@@ -322,13 +617,13 @@ textarea {
   width: 22px;
   height: 22px;
   font-size: 16px;
-  color: #8b95a3;
+  color: var(--ink-muted);
   border-radius: 4px;
 }
 
 .maplibregl-popup .maplibregl-popup-close-button:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  background: #f0f2f3;
 }
 
 .popup h3 {
@@ -341,13 +636,97 @@ textarea {
   margin: 3px 0 0;
   font-size: 13px;
   line-height: 1.4;
-  color: #c3cad4;
+  color: var(--ink-2);
 }
 
 .popup .type {
   margin-top: 0;
   font-size: 12px;
-  color: #8b95a3;
+  color: var(--ink-muted);
+}
+
+
+/* ---------- Phones: the menu and the country on top, the map under them ----------
+   The other pages (Events, News, Weapon reach) open over the bottom half of the map. */
+@media (max-width: 600px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    flex: none;
+    border-right: none;
+    border-bottom: 1px solid #d6dbdf;
+    overflow: visible;
+  }
+
+  .side-nav {
+    flex-direction: row;
+    gap: 0;
+    padding: 4px;
+    overflow-x: auto;
+    border-bottom: none;
+  }
+
+  .side-nav-item {
+    flex: none;
+    gap: 6px;
+    height: 38px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+  .side-nav-item svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .side-nav-item.active {
+    box-shadow: inset 0 -3px 0 var(--red);
+  }
+
+  .side-badge {
+    margin-left: 0;
+    padding: 1px 6px;
+    font-size: 11px;
+  }
+
+  .side-country {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px 8px;
+  }
+
+  .side-country select {
+    flex: 1;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .side-body {
+    position: fixed;
+    z-index: 3;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 55%;
+    overflow-y: auto;
+    background: #ffffff;
+    border-top: 3px solid var(--red);
+    box-shadow: 0 -2px 8px rgba(29, 35, 41, 0.2);
+  }
+
+  /* On the Map page the map gets the whole screen */
+  .sidebar.view-map .side-body {
+    display: none;
+  }
+
+  .map-side.map-side-right {
+    left: 12px;
+    right: 52px;
+    width: auto;
+  }
 }
 
 /* ---------- Admin page ---------- */
@@ -781,12 +1160,14 @@ textarea {
 }
 
 .editor-title {
+  font-size: 14px;
   font-weight: 700;
+  color: var(--red);
 }
 
 .editor-note {
   margin: 0;
-  color: #8b95a3;
+  color: var(--ink-muted);
   font-size: 12px;
 }
 
@@ -800,21 +1181,21 @@ textarea {
   padding: 5px 9px;
   font-size: 12px;
   font-family: inherit;
-  color: #e6e9ee;
-  background: transparent;
-  border: 1px solid #2a313b;
-  border-radius: 6px;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
   cursor: pointer;
 }
 
 .tool:hover {
-  background: #2a313b;
+  border-color: var(--red);
 }
 
 .tool.active {
-  color: var(--on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
+  color: #ffffff;
+  background: var(--red);
+  border-color: var(--red);
 }
 
 .editor-section {
@@ -822,7 +1203,7 @@ textarea {
   flex-direction: column;
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid #2a313b;
+  border-top: 1px solid var(--line);
 }
 
 .editor label {
@@ -830,7 +1211,7 @@ textarea {
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: #8b95a3;
+  color: var(--ink-2);
 }
 
 .editor input,
@@ -841,11 +1222,22 @@ textarea {
   padding: 6px 8px;
   font-size: 13px;
   font-family: inherit;
-  color: #e6e9ee;
-  background: #0e1217;
-  border: 1px solid #2a313b;
-  border-radius: 6px;
-  color-scheme: dark;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+
+.editor input:focus,
+.editor select:focus,
+.editor textarea:focus {
+  outline: none;
+  border-color: var(--red);
+}
+
+.editor input[type='checkbox'],
+.editor input[type='range'] {
+  accent-color: var(--red);
 }
 
 .editor input[type='color'] {
@@ -874,54 +1266,6 @@ textarea {
 /* A narrow field in a row (e.g. a 2-letter country code) */
 .row label.short {
   flex: 0 0 110px;
-}
-
-/* ---------- Country tabs (top of the map) ---------- */
-.country-tabs {
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 4px;
-  padding: 5px;
-  max-width: calc(100% - 700px);
-  /* leave room for the boxes on the left and on the right */
-  overflow-x: auto;
-  /* many countries → scroll sideways */
-}
-
-.country-tab {
-  padding: 6px 12px;
-  font-size: 13px;
-  font-family: inherit;
-  color: #c3cad4;
-  background: transparent;
-  border: none;
-  border-radius: 7px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.country-tab:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.country-tab.active {
-  color: var(--on-accent);
-  font-weight: 500;
-  background: var(--accent);
-}
-
-/* Smaller screens: the tabs go under the header, full width */
-@media (max-width: 900px) {
-  .country-tabs {
-    top: 12px;
-    left: 12px;
-    right: 60px;
-    transform: none;
-    max-width: none;
-  }
 }
 
 /* ---------- Sides ---------- */
@@ -970,19 +1314,14 @@ textarea {
   flex-basis: 100%;
 }
 
-/* ---------- Map key (bottom left) and weapon reach (bottom right) ----------
-   Both panels share the same pieces: a title that folds the panel, named groups, and rows. */
-.map-legend,
+/* ---------- Weapon reach and air defence (Weapon reach page of the side panel) ----------
+   Both boxes share the same pieces: a title that folds the box, named groups, and rows. */
 .weapons-panel {
   padding: 4px 0 10px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   box-sizing: border-box;
-}
-
-.map-legend {
-  gap: 0;
 }
 
 /* Title: folds / unfolds the panel */
@@ -993,7 +1332,7 @@ textarea {
   padding: 8px 14px;
   font: 600 13px/1.2 inherit;
   font-family: inherit;
-  color: #e6e9ee;
+  color: var(--ink);
   text-align: left;
   background: none;
   border: none;
@@ -1002,14 +1341,14 @@ textarea {
 
 .key-chevron {
   font-size: 16px;
-  color: #8b95a3;
+  color: var(--ink-muted);
 }
 
 /* A named group of rows ("On the ground", "Houthis, Yemen"…) */
 .key-group,
 .reach-group {
   padding: 6px 0 2px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--line);
 }
 
 .key-group-name {
@@ -1019,106 +1358,15 @@ textarea {
   padding: 2px 14px 4px;
   font-size: 11px;
   font-weight: 600;
-  color: #8b95a3;
+  color: var(--ink-muted);
 }
 
-/* One line of the key: the whole line is the switch */
-.key-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 4px 14px;
-  font: inherit;
-  font-size: 13px;
-  color: #e6e9ee;
-  text-align: left;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.key-row:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.key-row.off {
-  opacity: 0.38;
-}
-
-.key-row:disabled {
-  cursor: default;
-}
-
-.country-tab:focus-visible,
-.key-row:focus-visible,
 .key-title:focus-visible,
 .key-reset:focus-visible,
 .reach-weapon:focus-visible,
 .reach-remove:focus-visible {
-  outline: 2px solid #e6e9ee;
+  outline: 2px solid var(--red);
   outline-offset: -2px;
-}
-
-/* The symbol column: every symbol centred in the same 20px box, so the labels line up */
-.key-symbol {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  flex: none;
-}
-
-.key-symbol img {
-  width: 18px;
-  height: 18px;
-}
-
-.key-label {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.key-detail {
-  font-size: 11px;
-  color: #8b95a3;
-}
-
-/* Sides sit under "Frontlines", lined up with its label */
-.key-side {
-  padding-left: 44px;
-  font-size: 12px;
-}
-
-/* A side's layers, one step further in, under the side */
-.key-layer {
-  padding-left: 66px;
-  font-size: 12px;
-}
-
-.key-layer .key-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Siren swatch and frontline area swatch */
-.key-swatch {
-  width: 14px;
-  height: 10px;
-  border-radius: 2px;
-  opacity: 0.85;
-}
-
-.key-area {
-  width: 14px;
-  height: 10px;
-  background: rgba(229, 72, 77, 0.3);
-  border: 1.5px solid #e5484d;
-  border-radius: 2px;
 }
 
 /* Small text button: "Show everything", "Remove all", "Cancel" */
@@ -1128,7 +1376,7 @@ textarea {
   padding: 0;
   font: inherit;
   font-size: 12px;
-  color: #c3cad4;
+  color: var(--ink-2);
   text-decoration: underline;
   text-underline-offset: 3px;
   background: none;
@@ -1137,16 +1385,7 @@ textarea {
 }
 
 .key-reset:hover {
-  color: #ffffff;
-}
-
-.key-note {
-  margin: 8px 14px 0;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 11px;
-  line-height: 1.45;
-  color: #8b95a3;
+  color: var(--red-dark);
 }
 
 /* ---------- Weapon reach ---------- */
@@ -1155,7 +1394,7 @@ textarea {
   padding: 0 14px 8px;
   font-size: 12px;
   line-height: 1.4;
-  color: #8b95a3;
+  color: var(--ink-muted);
 }
 
 /* "Click the map where … would launch from" */
@@ -1167,9 +1406,9 @@ textarea {
   padding: 8px 10px;
   font-size: 12px;
   line-height: 1.4;
-  color: #e6e9ee;
-  background: rgba(255, 255, 255, 0.06);
-  border-left: 2px solid #e6e9ee;
+  color: var(--ink);
+  background: var(--line);
+  border-left: 2px solid var(--red);
 }
 
 .reach-placing .key-reset {
@@ -1183,7 +1422,7 @@ textarea {
   width: 100%;
   padding: 6px 14px;
   font: inherit;
-  color: #e6e9ee;
+  color: var(--ink);
   text-align: left;
   background: none;
   border: none;
@@ -1192,12 +1431,12 @@ textarea {
 }
 
 .reach-weapon:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: #f7f8f9;
 }
 
 .reach-weapon.active {
-  background: rgba(255, 255, 255, 0.07);
-  border-left-color: #e6e9ee;
+  background: var(--red-soft);
+  border-left-color: var(--ink);
 }
 
 .reach-line {
@@ -1216,12 +1455,12 @@ textarea {
 .reach-km {
   flex: none;
   font-variant-numeric: tabular-nums;
-  color: #c3cad4;
+  color: var(--ink-2);
 }
 
 .reach-bar {
   height: 3px;
-  background: rgba(255, 255, 255, 0.08);
+  background: #eef0f2;
   border-radius: 2px;
   overflow: hidden;
 }
@@ -1234,7 +1473,7 @@ textarea {
 
 .reach-type {
   font-size: 11px;
-  color: #8b95a3;
+  color: var(--ink-muted);
 }
 
 /* The weapon reach box: same pieces as the map key */
@@ -1265,7 +1504,7 @@ textarea {
   max-height: 140px;
   overflow-y: auto;
   padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--line);
 }
 
 .reach-placed-head {
@@ -1296,7 +1535,7 @@ textarea {
   height: 24px;
   font-size: 16px;
   line-height: 1;
-  color: #8b95a3;
+  color: var(--ink-muted);
   background: none;
   border: none;
   border-radius: 4px;
@@ -1304,8 +1543,8 @@ textarea {
 }
 
 .reach-remove:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--red-dark);
+  background: #eef0f2;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1325,16 +1564,16 @@ textarea {
   font: inherit;
   font-size: 13px;
   font-weight: 600;
-  color: #e6e9ee;
+  color: var(--ink);
   text-align: left;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 6px;
   cursor: pointer;
 }
 
 .reach-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #eef0f2;
 }
 
 .reach-toggle.on {
@@ -1349,7 +1588,7 @@ textarea {
 }
 
 .reach-toggle:focus-visible {
-  outline: 2px solid #e6e9ee;
+  outline: 2px solid var(--red);
   outline-offset: 2px;
 }
 
@@ -1358,7 +1597,7 @@ textarea {
 }
 
 .reach-error {
-  color: #ff9b9e;
+  color: var(--red);
 }
 
 /* No weapons (e.g. Egypt): no empty space, the box shrinks to its text */
@@ -1367,11 +1606,11 @@ textarea {
 }
 
 
-/* Scrollbars inside the boxes on the map: thin and dark (the browser's default is a wide light bar) */
+/* Scrollbars inside the boxes: thin, a grey bar on white */
 .map-panel,
 .map-panel * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: rgba(29, 35, 41, 0.25) transparent;
 }
 
 /* Older Chrome / Safari use these instead */
@@ -1383,7 +1622,7 @@ textarea {
 
 .map-panel::-webkit-scrollbar-thumb,
 .map-panel ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(29, 35, 41, 0.25);
   border-radius: 3px;
 }
 
@@ -1412,7 +1651,7 @@ textarea {
 
 .maplibregl-ctrl-group .measure-button.active {
   color: #ffffff;
-  background: #0e1217;
+  background: var(--red);
 }
 
 /* How to use the ruler, bottom centre of the map */
@@ -1476,42 +1715,6 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Test the weapon reach ---------- */
-/* The button that opens it (where the weapons box used to be) */
-.map-panel.test-start {
-  padding: 10px;
-}
-
-.test-start .btn {
-  width: 100%;
-}
-
-/* The bar on top while testing: title + × to leave */
-.map-panel.test-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 8px 8px 14px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.test-close {
-  width: 28px;
-  height: 28px;
-  font-size: 18px;
-  line-height: 1;
-  color: #e6e9ee;
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.test-close:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
 /* Air defence rows are divs (they hold a button), so they need the box sizing a button has by itself */
 div.reach-weapon {
   box-sizing: border-box;
@@ -1531,35 +1734,20 @@ div.reach-weapon {
   padding: 2px 10px;
   font: inherit;
   font-size: 11px;
-  color: #e6e9ee;
+  color: var(--ink);
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
   cursor: pointer;
 }
 
 .place-btn:hover,
 .place-btn[aria-pressed='true'] {
-  background: rgba(255, 255, 255, 0.1);
+  background: #eef0f2;
 }
 
 .defence-note {
   padding-top: 6px;
-}
-
-/* Two boxes in the left column: they share the height and their lists scroll */
-.map-side .weapons-panel {
-  flex-shrink: 1;
-  min-height: 0;
-}
-
-/* Air defence box in the right column (testing mode): more room there, so the list shows all systems */
-.map-side-right .weapons-panel {
-  max-height: 85%;
-}
-
-.map-side-right .reach-list {
-  max-height: none;
 }
 
 /* ---------- Import map: one row per KML folder ---------- */
@@ -1652,7 +1840,7 @@ div.reach-weapon {
 
 .editor-field-name {
   font-size: 12px;
-  color: #8b95a3;
+  color: var(--ink-2);
 }
 
 .icon-picker {
@@ -1675,9 +1863,9 @@ div.reach-weapon {
   width: 36px;
   height: 36px;
   padding: 3px;
-  border: 1px solid #3a4553;
-  border-radius: 6px;
-  background: #1b232d;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: #ffffff;
   cursor: pointer;
 }
 
@@ -1692,16 +1880,16 @@ div.reach-weapon {
   width: auto;
   padding: 3px 8px;
   font-size: 12px;
-  color: #c9d1db;
+  color: var(--ink);
 }
 
 /* The chosen one */
 .icon-choice.active {
-  border-color: #4fc3f7;
-  box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.35);
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px rgba(200, 16, 46, 0.25);
 }
 
 .icon-choice:focus-visible {
-  outline: 2px solid #4fc3f7;
+  outline: 2px solid var(--red);
   outline-offset: 2px;
 }

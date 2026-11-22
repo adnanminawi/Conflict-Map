@@ -1,155 +1,80 @@
-import { useEffect, useState } from 'react'
-import airportIcon from '../assets/icons/airport.png'
-import militaryBaseIcon from '../assets/icons/military_base.png'
-import navalBaseIcon from '../assets/icons/naval_base.png'
-import missileBaseIcon from '../assets/icons/missile_base.png'
-import airDefenceIcon from '../assets/icons/air_defence.png'
-import radarIcon from '../assets/icons/radar.png'
-import fightingIcon from '../assets/icons/fighting.png'
-import explosionIcon from '../assets/icons/explosion.png'
+import { useState } from 'react'
 import { ALERT_COLORS, ALERT_MINUTES } from '../map/alertsLayer'
-import { ALL_VISIBLE, type Category, type LegendSide, type Visible } from '../map/filters'
+import type { Category, LegendSide, Visible } from '../map/filters'
 
 interface Props {
-  visible: Visible
-  onToggle: (category: Category) => void
-  onShowAll: () => void
-  sides: LegendSide[] // the selected country's sides (empty in "All")
+  sides: LegendSide[] // the selected country's sides (empty in "All countries")
+  allCountries: boolean // "All countries" is chosen: no sides to show yet
   hiddenSides: number[]
   onToggleSide: (sideId: number) => void
   hiddenLayers: string[] // layer names the visitor switched off
   onToggleLayer: (name: string) => void
-  autoFold: boolean // a country with weapons is open: fold the key so the weapons box gets the room
+  showSirens: boolean // Israel or All countries: the siren areas are on the map, so they need a key
+  visible: Visible
+  onToggle: (category: Category) => void
 }
 
-// The map key in the bottom-left corner. Each line explains a symbol,
-// and clicking the line shows or hides it on the map (a dimmed line = hidden).
-export default function MapLegend({
-  visible,
-  onToggle,
-  onShowAll,
-  sides,
-  hiddenSides,
-  onToggleSide,
-  hiddenLayers,
-  onToggleLayer,
-  autoFold,
-}: Props) {
+// The map key: a small see-through box in the bottom-left corner of the map.
+// It explains the frontline colors, and each checkbox shows or hides that side or layer.
+export default function MapLegend({ sides, allCountries, hiddenSides, onToggleSide, hiddenLayers, onToggleLayer, showSirens, visible, onToggle }: Props) {
   // Open on computers, closed on phones (it would cover the map)
   const [open, setOpen] = useState(() => window.innerWidth > 600)
 
-  // Country with weapons (e.g. Iran) → fold the key. Back to "All" or a country without weapons → open it again (on computers).
-  // The visitor can still open it with its title.
-  useEffect(() => {
-    setOpen(!autoFold && window.innerWidth > 600)
-  }, [autoFold])
-
-  // Something is hidden → offer "Show everything"
-  const somethingHidden =
-    hiddenSides.length > 0 || hiddenLayers.length > 0 || (Object.keys(ALL_VISIBLE) as Category[]).some((c) => !visible[c])
-
-  // One line of the key = one switch
-  function row(category: Category, symbol: React.ReactNode, label: string, detail?: string) {
-    const on = visible[category]
-    return (
-      <button
-        key={category}
-        type="button"
-        className={on ? 'key-row' : 'key-row off'}
-        aria-pressed={on}
-        title={on ? 'Click to hide' : 'Click to show'}
-        onClick={() => onToggle(category)}
-      >
-        <span className="key-symbol">{symbol}</span>
-        <span className="key-label">
-          {label}
-          {detail && <span className="key-detail">{detail}</span>}
-        </span>
-      </button>
-    )
-  }
-
   return (
-    <div className="map-panel map-legend">
-      <button type="button" className="key-title" aria-expanded={open} onClick={() => setOpen(!open)}>
-        Map key
-        <span className="key-chevron" aria-hidden>
-          {open ? '−' : '+'}
-        </span>
-      </button>
+    <div className="map-key" aria-label="Map key">
+      <div className="map-key-head">
+        <h2 className="side-title">Frontlines</h2>
+        <button type="button" className="map-key-fold" aria-expanded={open} aria-label={open ? 'Hide the key' : 'Show the key'} onClick={() => setOpen(!open)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d={open ? 'm6 9 6 6 6-6' : 'm6 15 6-6 6 6'} />
+          </svg>
+        </button>
+      </div>
 
       {open && (
         <>
-          <div className="key-group">
-            <div className="key-group-name">Sirens in Israel</div>
-            {row('rockets', <span className="key-swatch" style={{ background: ALERT_COLORS.rockets }} />, 'Rockets', `last ${ALERT_MINUTES} min`)}
-            {row('drones', <span className="key-swatch" style={{ background: ALERT_COLORS.drone }} />, 'Drones', `last ${ALERT_MINUTES} min`)}
-          </div>
-
-          <div className="key-group">
-            <div className="key-group-name">On the ground</div>
-            {row('events', <span className="legend-pin" />, 'Confirmed events')}
-            {row('frontlines', <span className="key-area" />, 'Frontlines')}
-            {/* The selected country's sides, indented under Frontlines, and each side's layers under it */}
-            {sides.map((side) => {
-              const on = !hiddenSides.includes(side.id)
-              const sideShown = on && visible.frontlines
-              return (
-                <div key={side.id}>
-                  <button
-                    type="button"
-                    className={sideShown ? 'key-row key-side' : 'key-row key-side off'}
-                    aria-pressed={on}
-                    disabled={!visible.frontlines}
-                    onClick={() => onToggleSide(side.id)}
-                  >
-                    <span className="key-symbol">
-                      <span className="side-dot" style={{ background: side.color }} />
-                    </span>
-                    <span className="key-label">{side.name}</span>
-                  </button>
-                  {side.layers.map((name) => {
-                    const layerOn = !hiddenLayers.includes(name)
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        className={layerOn && sideShown ? 'key-row key-layer' : 'key-row key-layer off'}
-                        aria-pressed={layerOn}
-                        disabled={!sideShown} // a hidden side hides all its layers
-                        title={layerOn ? 'Click to hide' : 'Click to show'}
-                        onClick={() => onToggleLayer(name)}
-                      >
-                        <span className="key-label">
-                          <bdi>{name}</bdi>
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )
-            })}
-            {row('fighting', <img src={fightingIcon} alt="" />, 'Fighting')}
-            {row('explosion', <img src={explosionIcon} alt="" />, 'Explosions')}
-          </div>
-
-          <div className="key-group">
-            <div className="key-group-name">Military sites</div>
-            {row('airport', <img src={airportIcon} alt="" />, 'Airports')}
-            {row('military_base', <img src={militaryBaseIcon} alt="" />, 'Military bases')}
-            {row('naval_base', <img src={navalBaseIcon} alt="" />, 'Naval bases')}
-            {row('air_defence', <img src={airDefenceIcon} alt="" />, 'Air defence')}
-            {row('radar', <img src={radarIcon} alt="" />, 'Radars')}
-            {row('missile_base', <img src={missileBaseIcon} alt="" />, 'Missile bases')}
-          </div>
-
-          {somethingHidden && (
-            <button type="button" className="key-reset" onClick={onShowAll}>
-              Show everything
-            </button>
+          {sides.length === 0 && (
+            <p className="side-note">{allCountries ? 'Choose a country to see who holds which areas.' : 'No frontlines drawn for this country yet.'}</p>
           )}
 
-          <p className="key-note">Siren alerts are unofficial and may be late. Follow the Home Front Command app for your safety.</p>
+          {sides.map((side) => {
+            const on = !hiddenSides.includes(side.id)
+            return (
+              <div key={side.id} className="map-key-group">
+                <label className="map-key-row">
+                  <input type="checkbox" checked={on} onChange={() => onToggleSide(side.id)} />
+                  {/* The side's color, see-through like its areas on the map */}
+                  <span className="map-key-area" style={{ background: `${side.color}73`, borderColor: side.color }} />
+                  {side.name}
+                </label>
+                {/* Its layers, one step in. A hidden side hides them all. */}
+                {side.layers.length > 1 &&
+                  side.layers.map((name) => (
+                    <label key={name} className={on ? 'map-key-row map-key-layer' : 'map-key-row map-key-layer off'}>
+                      <input type="checkbox" checked={!hiddenLayers.includes(name)} disabled={!on} onChange={() => onToggleLayer(name)} />
+                      <bdi>{name}</bdi>
+                    </label>
+                  ))}
+              </div>
+            )
+          })}
+
+          {showSirens && (
+            <div className="map-key-group">
+              <h3 className="map-key-sub">Sirens, last {ALERT_MINUTES} min</h3>
+              <label className="map-key-row">
+                <input type="checkbox" checked={visible.rockets} onChange={() => onToggle('rockets')} />
+                <span className="map-key-area" style={{ background: ALERT_COLORS.rockets, borderColor: ALERT_COLORS.rockets }} />
+                Rockets
+              </label>
+              <label className="map-key-row">
+                <input type="checkbox" checked={visible.drones} onChange={() => onToggle('drones')} />
+                <span className="map-key-area" style={{ background: ALERT_COLORS.drone, borderColor: ALERT_COLORS.drone }} />
+                Drones
+              </label>
+              <p className="side-note">Siren alerts are unofficial and may be late. Follow the Home Front Command app for your safety.</p>
+            </div>
+          )}
         </>
       )}
     </div>
