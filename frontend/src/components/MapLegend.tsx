@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { ALERT_COLORS, ALERT_MINUTES } from '../map/alertsLayer'
 import type { Category, LegendSide, Visible } from '../map/filters'
 
 interface Props {
@@ -59,22 +58,7 @@ export default function MapLegend({ sides, allCountries, hiddenSides, onToggleSi
             )
           })}
 
-          {showSirens && (
-            <div className="map-key-group">
-              <h3 className="map-key-sub">Sirens, last {ALERT_MINUTES} min</h3>
-              <label className="map-key-row">
-                <input type="checkbox" checked={visible.rockets} onChange={() => onToggle('rockets')} />
-                <span className="map-key-area" style={{ background: ALERT_COLORS.rockets, borderColor: ALERT_COLORS.rockets }} />
-                Rockets
-              </label>
-              <label className="map-key-row">
-                <input type="checkbox" checked={visible.drones} onChange={() => onToggle('drones')} />
-                <span className="map-key-area" style={{ background: ALERT_COLORS.drone, borderColor: ALERT_COLORS.drone }} />
-                Drones
-              </label>
-              <p className="side-note">Siren alerts are unofficial and may be late. Follow the Home Front Command app for your safety.</p>
-            </div>
-          )}
+          
         </>
       )}
     </div>
