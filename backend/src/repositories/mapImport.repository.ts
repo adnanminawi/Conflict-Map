@@ -8,15 +8,23 @@ import { saveShapes } from './layers.repository';
 // ---------- Countries (PostGIS) ----------
 
 const NEAR_BORDER_METERS = 30_000; // a pin just outside every border (a port, a small island) → the nearest country within 30 km
+// Our borders are simplified: near a border they can be a few km off. A pin this close to the file's main country
+// is given to the main country, even if the simplified border puts it just inside the neighbor.
+const MAIN_COUNTRY_METERS = 10_000;
 
 // The country of each point, in the same order (null = no country found).
 // One query for all points: unnest turns the two lists into rows (lng, lat, n).
 // 1. ST_Intersects: the border that contains the point (fast: uses the spatial index).
 // 2. If none: the nearest border within 30 km, because the borders are simplified and miss some coasts and islands.
-export async function findCountries(points: { lng: number; lat: number }[]): Promise<(string | null)[]> {
+// mainCountry = the file's main country (chosen in the import): it wins within 10 km of its border.
+// COALESCE takes the first answer that isn't null: 1. the main country if the pin is near it,
+// 2. the country the pin is inside, 3. the nearest country within 30 km.
+export async function findCountries(points: { lng: number; lat: number }[], mainCountry: string): Promise<(string | null)[]> {
   if (points.length === 0) return [];
   const { rows } = await db.query<{ code: string | null }>(
     `SELECT COALESCE(
+              (SELECT b.code FROM country_borders b
+                WHERE b.code = $4 AND ST_DWithin(b.geom::geography, p.geom::geography, $5)),
               (SELECT b.code FROM country_borders b WHERE ST_Intersects(b.geom, p.geom) LIMIT 1),
               (SELECT b.code FROM country_borders b
                 WHERE ST_DWithin(b.geom::geography, p.geom::geography, $3)
@@ -26,7 +34,7 @@ export async function findCountries(points: { lng: number; lat: number }[]): Pro
        FROM unnest($1::float8[], $2::float8[]) WITH ORDINALITY AS t(lng, lat, n)
       CROSS JOIN LATERAL (SELECT ST_SetSRID(ST_MakePoint(t.lng, t.lat), 4326) AS geom) p
       ORDER BY t.n`,
-    [points.map((p) => p.lng), points.map((p) => p.lat), NEAR_BORDER_METERS],
+    [points.map((p) => p.lng), points.map((p) => p.lat), NEAR_BORDER_METERS, mainCountry, MAIN_COUNTRY_METERS],
   );
   return rows.map((r) => r.code);
 }
