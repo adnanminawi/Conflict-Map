@@ -42,8 +42,38 @@ function contents(f: PreviewFolder) {
   return parts.join(' · ')
 }
 
+// Adds one folder's counts into a total: { 'SA-2': 28 } + { 'SA-2': 3, HAWK: 12 } → { 'SA-2': 31, HAWK: 12 }
+function addCounts(total: Record<string, number>, more: Record<string, number>) {
+  for (const [key, n] of Object.entries(more)) total[key] = (total[key] ?? 0) + n
+}
+
+// "SA-2 (28), HAWK (12)", the biggest first
+function listCounts(counts: Record<string, number>, label: (key: string) => string = (k) => k) {
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, n]) => `${label(key)} (${n})`)
+    .join(', ')
+}
+
+// "EWR (1 x 36D6…)" and "EWR (Radome)" → "EWR": the name before the bracket, so one system is one line.
+// The same name in other capitals ("Hawk" / "HAWK") is joined too, under the first spelling met.
+function groupByName(counts: Record<string, number>): Record<string, number> {
+  const grouped: Record<string, number> = {}
+  const spelling: Record<string, string> = {} // lower-case name → the spelling shown
+  for (const [label, n] of Object.entries(counts)) {
+    const name = label.split(' (')[0].trim() || label
+    const key = name.toLowerCase()
+    spelling[key] ??= name
+    addCounts(grouped, { [spelling[key]]: n })
+  }
+  return grouped
+}
+
+const SHORT_LIST = 6 // the missing systems shown before "+N more"
+
 // One Google Earth / My Maps file with bases, frontlines and strikes.
-// Step 1: read the file → the backend guesses what each folder is. Step 2: check the guesses → import.
+// Step 1: read the file → the backend guesses what each folder is.
+// Step 2: a short summary of what will be imported, and only the problems. The full folder list is folded.
 export default function MapImport({ onLoggedOut }: Props) {
   const [types, setTypes] = useState<LocationType[]>([])
   const [sides, setSides] = useState<Side[]>([])
@@ -59,6 +89,7 @@ export default function MapImport({ onLoggedOut }: Props) {
   const [result, setResult] = useState<MapImportResult | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [allSystems, setAllSystems] = useState(false) // "+N more" was clicked: show every missing system
 
   function handleError(err: unknown) {
     if (isUnauthorized(err)) onLoggedOut()
@@ -73,6 +104,7 @@ export default function MapImport({ onLoggedOut }: Props) {
 
   // A new file or country → the old preview no longer matches
   function startOver() {
+    setAllSystems(false)
     setPreview(null)
     setResult(null)
     setError('')
@@ -110,6 +142,11 @@ export default function MapImport({ onLoggedOut }: Props) {
     setChoices((all) => all.map((c) => (c.index === index ? { ...c, ...patch } : c)))
   }
 
+  // Changes several folders at once (used by the alerts: "put them all in…", "save them as…")
+  function changeMany(indexes: number[], patch: Partial<FolderChoice>) {
+    setChoices((all) => all.map((c) => (indexes.includes(c.index) ? { ...c, ...patch } : c)))
+  }
+
   // Step 2: import. Everything is saved together, or nothing (the backend uses one transaction).
   async function runImport() {
     if (!file) return
@@ -140,12 +177,201 @@ export default function MapImport({ onLoggedOut }: Props) {
     a === country ? -1 : b === country ? 1 : a.localeCompare(b),
   )
 
+  // ---------- Fields shared by the alerts and the folder list ----------
+
+  // Side + layer name of a frontline folder
+  function layerFields(c: FolderChoice) {
+    return (
+      <>
+        <label>
+          Side
+          <select value={c.sideId ?? ''} onChange={(e) => change(c.index, { sideId: e.target.value ? Number(e.target.value) : null })}>
+            <option value="">Choose…</option>
+            {sideCountries.map((code) => (
+              <optgroup key={code} label={code}>
+                {sides
+                  .filter((s) => s.country_code === code)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        <label>
+          Layer name
+          <input dir="auto" value={c.layerName ?? ''} onChange={(e) => change(c.index, { layerName: e.target.value })} />
+        </label>
+      </>
+    )
+  }
+
+  // Event type of a strikes folder
+  function eventTypeField(c: FolderChoice) {
+    return (
+      <label>
+        Event type
+        <select
+          value={c.eventTypeId ?? ''}
+          onChange={(e) => change(c.index, { eventTypeId: e.target.value ? Number(e.target.value) : null })}
+        >
+          <option value="">Choose…</option>
+          {eventTypes.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+
+  // ---------- The full folder list (folded under "Change folders") ----------
+
+  function folderList() {
+    if (!preview) return null
+    return (
+      <ul className="import-folders">
+        {preview.folders.map((f) => {
+          const c = choices[f.index]
+          const countryCodes = Object.keys(f.countries)
+          return (
+            <li key={f.index} className={c.action === 'skip' ? 'import-folder skipped' : 'import-folder'}>
+              <div className="import-folder-head">
+                <div className="import-folder-title">
+                  <strong dir="auto">{f.name}</strong>
+                  <span className="import-folder-meta">
+                    {contents(f)}
+                    {f.fileIcons > 0 && ` · ${f.fileIcons} with their own icon`}
+                    {countryCodes.length > 0 && ` · ${countryCodes.map((code) => `${code} ${f.countries[code]}`).join(', ')}`}
+                  </span>
+                </div>
+                <select
+                  aria-label={`What to do with ${f.name}`}
+                  value={c.action}
+                  onChange={(e) => change(f.index, { action: e.target.value as FolderAction })}
+                >
+                  {/* Bases and strikes are pins: only offered when the folder has some */}
+                  {f.points > 0 && <option value="bases">{ACTION_LABELS.bases}</option>}
+                  <option value="layer">{ACTION_LABELS.layer}</option>
+                  {f.points > 0 && <option value="events">{ACTION_LABELS.events}</option>}
+                  <option value="skip">{ACTION_LABELS.skip}</option>
+                </select>
+              </div>
+
+              {c.action === 'bases' && (
+                <div className="import-folder-detail">
+                  <span className="import-folder-meta">
+                    {Object.entries(f.baseTypes)
+                      .map(([code, n]) => `${typeName(code)} ${n}`)
+                      .join(' · ') || 'No pin has a clear type'}
+                  </span>
+                  {f.unclear > 0 && (
+                    <div className="row">
+                      <label>
+                        Type for the {count(f.unclear, 'pin')} with no clear type
+                        <select value={c.typeCode} onChange={(e) => change(f.index, { typeCode: e.target.value })}>
+                          {types.map((t) => (
+                            <option key={t.code} value={t.code}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                  {countryCodes.length > 1 && (
+                    <label className="bulk-check">
+                      <input
+                        type="checkbox"
+                        checked={c.fileCountry === true}
+                        onChange={(e) => change(f.index, { fileCountry: e.target.checked })}
+                      />
+                      Put all of them in {country}
+                    </label>
+                  )}
+                </div>
+              )}
+
+              {c.action === 'layer' && <div className="import-folder-detail row">{layerFields(c)}</div>}
+
+              {c.action === 'events' && (
+                <div className="import-folder-detail row">
+                  {eventTypeField(c)}
+                  {countryCodes.length > 1 && (
+                    <label className="bulk-check">
+                      <input
+                        type="checkbox"
+                        checked={c.fileCountry === true}
+                        onChange={(e) => change(f.index, { fileCountry: e.target.checked })}
+                      />
+                      Put all of them in {country}
+                    </label>
+                  )}
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    )
+  }
+
+  // ---------- The short version: what will be imported, and only the problems ----------
+
+  // Each folder with the admin's current choice
+  const folders = preview ? preview.folders.map((f) => ({ f, c: choices[f.index] })).filter(({ c }) => c) : []
+  const withAction = (action: FolderAction) => folders.filter(({ c }) => c.action === action)
+  const baseFolders = withAction('bases')
+  const pinFolders = [...baseFolders, ...withAction('events')] // the folders whose pins get a country
+
+  // What will be imported
+  const baseTotal = baseFolders.reduce((n, { f }) => n + f.points, 0)
+  const basesByType: Record<string, number> = {}
+  for (const { f, c } of baseFolders) {
+    addCounts(basesByType, f.baseTypes)
+    if (f.unclear > 0 && c.typeCode) addCounts(basesByType, { [c.typeCode]: f.unclear }) // they get the folder's type
+  }
+  const layerNames = [...new Set(withAction('layer').map(({ c }) => c.layerName?.trim() || ''))].filter((n) => n !== '')
+  const eventTotal = withAction('events').reduce((n, { f }) => n + f.points, 0)
+  const skippedFolders = withAction('skip')
+
+  // Problems worth a look (they don't stop the import)
+  const missingRaw: Record<string, number> = {} // air defence / radar systems not in the Weapons tab
+  for (const { f } of baseFolders) addCounts(missingRaw, f.systems.missing)
+  const missingSystems = groupByName(missingRaw)
+  const missingSorted = Object.entries(missingSystems).sort((a, b) => b[1] - a[1])
+  const missingShown = allSystems ? missingSorted : missingSorted.slice(0, SHORT_LIST)
+  const missingSites = missingSorted.reduce((n, [, sites]) => n + sites, 0)
+
+  const unclearFolders = baseFolders.filter(({ f }) => f.unclear > 0) // pins with no clear type
+  const unclearTotal = unclearFolders.reduce((n, { f }) => n + f.unclear, 0)
+  // The type each folder gives them: one type for all → that type in the dropdown, several → "their folder's type"
+  const unclearByType: Record<string, number> = {}
+  for (const { f, c } of unclearFolders) if (c.typeCode) addCounts(unclearByType, { [c.typeCode]: f.unclear })
+  const unclearTypes = Object.keys(unclearByType)
+  const unclearValue = unclearTypes.length === 1 ? unclearTypes[0] : ''
+
+  // Pins that fall in another country than the main one (found from their location)
+  const mixedFolders = pinFolders.filter(({ f }) => Object.keys(f.countries).some((code) => code !== country))
+  const otherCountries: Record<string, number> = {}
+  for (const { f, c } of mixedFolders) {
+    if (c.fileCountry) continue // the admin put them all in the main country
+    for (const [code, n] of Object.entries(f.countries)) if (code !== country) addCounts(otherCountries, { [code]: n })
+  }
+  const allInMain = mixedFolders.length > 0 && mixedFolders.every(({ c }) => c.fileCountry)
+
+  const noAlerts =
+    missing.length === 0 && Object.keys(missingSystems).length === 0 && unclearTotal === 0 && mixedFolders.length === 0
+
   return (
     <div className="card wide">
       <h2>Import map</h2>
       <p className="muted">
-        One Google Earth or My Maps file with bases, frontlines and strikes. Read it first: each folder gets a guess you can
-        change. Nothing is saved until you click Import.
+        One Google Earth or My Maps file with bases, frontlines and strikes. Read it first, check the summary, then import.
+        Nothing is saved until you click Import.
       </p>
 
       <label>
@@ -192,168 +418,128 @@ export default function MapImport({ onLoggedOut }: Props) {
 
       {preview && (
         <>
-          <div className="section-title">
-            {preview.found} placemarks in {count(preview.folders.length, 'folder')}
+          {/* What will be imported, in a few lines */}
+          <div className="import-summary ready">
+            <strong>
+              Ready to import from {count(preview.found, 'placemark')}
+            </strong>
+            <ul>
+              {baseTotal > 0 && (
+                <li>
+                  {count(baseTotal, 'base')}
+                  {Object.keys(basesByType).length > 0 && ` · ${listCounts(basesByType, typeName)}`}
+                </li>
+              )}
+              {layerNames.length > 0 && (
+                <li>
+                  {count(layerNames.length, 'frontline layer')}: <bdi>{layerNames.join(', ')}</bdi>
+                </li>
+              )}
+              {eventTotal > 0 && <li>{count(eventTotal, 'strike')}</li>}
+              {skippedFolders.length > 0 && <li className="import-skipped-line">{count(skippedFolders.length, 'folder')} skipped</li>}
+              {nothingChosen && <li>Nothing: every folder is skipped.</li>}
+            </ul>
           </div>
 
-          <ul className="import-folders">
-            {preview.folders.map((f) => {
-              const c = choices[f.index]
-              const countryCodes = Object.keys(f.countries)
+          {/* Only the problems */}
+          <div className="import-alerts">
+            {/* Must be fixed: the Import button waits for these */}
+            {missing.map((c) => {
+              const f = preview.folders[c.index]
               return (
-                <li key={f.index} className={c.action === 'skip' ? 'import-folder skipped' : 'import-folder'}>
-                  <div className="import-folder-head">
-                    <div className="import-folder-title">
-                      <strong dir="auto">{f.name}</strong>
-                      <span className="import-folder-meta">
-                        {contents(f)}
-                        {f.fileIcons > 0 && ` · ${f.fileIcons} with their own icon`}
-                        {countryCodes.length > 0 && ` · ${countryCodes.map((code) => `${code} ${f.countries[code]}`).join(', ')}`}
-                      </span>
-                    </div>
-                    <select
-                      aria-label={`What to do with ${f.name}`}
-                      value={c.action}
-                      onChange={(e) => change(f.index, { action: e.target.value as FolderAction })}
-                    >
-                      {/* Bases and strikes are pins: only offered when the folder has some */}
-                      {f.points > 0 && <option value="bases">{ACTION_LABELS.bases}</option>}
-                      <option value="layer">{ACTION_LABELS.layer}</option>
-                      {f.points > 0 && <option value="events">{ACTION_LABELS.events}</option>}
-                      <option value="skip">{ACTION_LABELS.skip}</option>
-                    </select>
-                  </div>
-
-                  {c.action === 'bases' && (
-                    <div className="import-folder-detail">
-                      <span className="import-folder-meta">
-                        {Object.entries(f.baseTypes)
-                          .map(([code, n]) => `${typeName(code)} ${n}`)
-                          .join(' · ') || 'No pin has a clear type'}
-                      </span>
-                      <div className="row">
-                        {f.unclear > 0 && (
-                          <label>
-                            Type for the {count(f.unclear, 'pin')} with no clear type
-                            <select value={c.typeCode} onChange={(e) => change(f.index, { typeCode: e.target.value })}>
-                              {types.map((t) => (
-                                <option key={t.code} value={t.code}>
-                                  {t.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        )}
-                      </div>
-                      {/* Air defence / radar: their range only shows if their system is in the Weapons tab */}
-                      {f.systems.linked > 0 && (
-                        <span className="import-folder-meta">Linked to a system in Weapons: {count(f.systems.linked, 'site')}</span>
-                      )}
-                      {Object.keys(f.systems.missing).length > 0 && (
-                        <p className="import-warning">
-                          Not in the Weapons tab, so no range will show:{' '}
-                          {Object.entries(f.systems.missing)
-                            .map(([name, n]) => `${name} (${n})`)
-                            .join(', ')}
-                          . Add them there with their range (before or after importing: they get linked when you add
-                          them).
-                        </p>
-                      )}
-                      {countryCodes.length > 1 && (
-                        <label className="bulk-check">
-                          <input
-                            type="checkbox"
-                            checked={c.fileCountry === true}
-                            onChange={(e) => change(f.index, { fileCountry: e.target.checked })}
-                          />
-                          Put all of them in {country} (the borders are simplified: pins near a border can land in the
-                          wrong country)
-                        </label>
-                      )}
-                    </div>
-                  )}
-
-                  {c.action === 'layer' && (
-                    <div className="import-folder-detail row">
-                      <label>
-                        Side
-                        <select
-                          value={c.sideId ?? ''}
-                          onChange={(e) => change(f.index, { sideId: e.target.value ? Number(e.target.value) : null })}
-                        >
-                          <option value="">Choose…</option>
-                          {sideCountries.map((code) => (
-                            <optgroup key={code} label={code}>
-                              {sides
-                                .filter((s) => s.country_code === code)
-                                .map((s) => (
-                                  <option key={s.id} value={s.id}>
-                                    {s.name}
-                                  </option>
-                                ))}
-                            </optgroup>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Layer name
-                        <input
-                          dir="auto"
-                          value={c.layerName ?? ''}
-                          onChange={(e) => change(f.index, { layerName: e.target.value })}
-                        />
-                      </label>
-                    </div>
-                  )}
-
-                  {c.action === 'events' && (
-                    <div className="import-folder-detail row">
-                      <label>
-                        Event type
-                        <select
-                          value={c.eventTypeId ?? ''}
-                          onChange={(e) => change(f.index, { eventTypeId: e.target.value ? Number(e.target.value) : null })}
-                        >
-                          <option value="">Choose…</option>
-                          {eventTypes.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {countryCodes.length > 1 && (
-                        <label className="bulk-check">
-                          <input
-                            type="checkbox"
-                            checked={c.fileCountry === true}
-                            onChange={(e) => change(f.index, { fileCountry: e.target.checked })}
-                          />
-                          Put all of them in {country}
-                        </label>
-                      )}
-                    </div>
-                  )}
-                </li>
+                <div key={c.index} className="import-alert alert-error">
+                  <p>
+                    <strong dir="auto">{f.name}</strong>: {c.action === 'layer' ? 'choose its side and layer name.' : 'choose its event type.'}
+                  </p>
+                  <div className="row">{c.action === 'layer' ? layerFields(c) : eventTypeField(c)}</div>
+                </div>
               )
             })}
-          </ul>
+
+            {/* Imported anyway, but their range won't show */}
+            {Object.keys(missingSystems).length > 0 && (
+              <div className="import-alert alert-warn">
+                <p>
+                  <strong>
+                    {count(missingSites, 'site')} with a system that isn't in the Weapons tab, so no range will show:
+                  </strong>{' '}
+                  {missingShown.map(([name, n]) => `${name} (${n})`).join(', ')}
+                  {missingSorted.length > SHORT_LIST && (
+                    <>
+                      {' '}
+                      <button type="button" className="link-button small" onClick={() => setAllSystems(!allSystems)}>
+                        {allSystems ? 'show less' : `+${missingSorted.length - SHORT_LIST} more`}
+                      </button>
+                    </>
+                  )}
+                </p>
+                <p className="import-alert-note">Add them in Weapons with their range, before or after importing: the sites get linked when you add them.</p>
+              </div>
+            )}
+
+            {/* Pins with no type: one type for all of them */}
+            {unclearTotal > 0 && (
+              <div className="import-alert alert-info">
+                <label className="inline-field">
+                  <span>{count(unclearTotal, 'pin')} with no clear type will be saved as</span>
+                  <select
+                    value={unclearValue}
+                    onChange={(e) => {
+                      if (e.target.value) changeMany(unclearFolders.map(({ f }) => f.index), { typeCode: e.target.value })
+                    }}
+                  >
+                    {/* Several folders, several types: say so, instead of showing only the first one */}
+                    {unclearValue === '' && (
+                      <option value="">their folder's type: {listCounts(unclearByType, typeName)}</option>
+                    )}
+                    {types.map((t) => (
+                      <option key={t.code} value={t.code}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {/* Pins outside the main country */}
+            {mixedFolders.length > 0 && (
+              <div className="import-alert alert-info">
+                {!allInMain && (
+                  <p>
+                    Not in {country}, from their location: {listCounts(otherCountries)}.
+                  </p>
+                )}
+                <label className="bulk-check">
+                  <input
+                    type="checkbox"
+                    checked={allInMain}
+                    onChange={(e) => changeMany(mixedFolders.map(({ f }) => f.index), { fileCountry: e.target.checked })}
+                  />
+                  Put them all in {country} (borders are simplified: pins near a border can land in the wrong country)
+                </label>
+              </div>
+            )}
+
+            {noAlerts && !nothingChosen && <p className="import-ok">✓ No problems found.</p>}
+          </div>
+
+          {/* The full list, for when a guess is wrong */}
+          <details className="import-details">
+            <summary>Change folders ({preview.folders.length})</summary>
+            {folderList()}
+          </details>
 
           <p className="hint">
-            Frontline layers and strikes get the date {date}. Folders with the same layer name are joined into one layer. Bases
-            already on the map (same type, within 50 m) are skipped.
+            Frontline layers and strikes get the date {date}. Folders with the same layer name are joined into one layer. Bases already on the map (same type, within 50 m) are skipped.
           </p>
-
-          {missing.length > 0 && (
-            <p className="hint">Still to choose: {missing.map((c) => preview.folders[c.index].name).join(', ')}</p>
-          )}
 
           <div className="row">
             <button className="btn btn-ghost" type="button" disabled={busy} onClick={startOver}>
               Cancel
             </button>
             <button className="btn" type="button" disabled={busy || missing.length > 0 || nothingChosen} onClick={runImport}>
-              {busy ? 'Importing…' : '2. Import'}
+              {busy ? 'Importing…' : missing.length > 0 ? 'Fix the red items first' : '2. Import'}
             </button>
           </div>
         </>
