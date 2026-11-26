@@ -1760,6 +1760,14 @@ div.reach-weapon {
   padding-top: 6px;
 }
 
+/* Import map: a folder's air defence systems that aren't in the Weapons tab yet */
+.import-warning {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #f0b429;
+}
+
 /* ---------- Import map: one row per KML folder ---------- */
 .import-folders {
   list-style: none;
