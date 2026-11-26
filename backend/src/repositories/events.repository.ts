@@ -53,21 +53,26 @@ export async function findTypes(): Promise<{ id: number; name: string; color: st
   return rows;
 }
 
-// Admin list: the 100 most recent events, optionally only one status.
+// Admin list: the most recent events (up to ADMIN_LIMIT), optionally only one status.
+// The admin page pages and filters them itself.
+export const ADMIN_LIMIT = 2000;
+
 export async function findRecentForAdmin(status?: EventStatus): Promise<AdminEvent[]> {
   const where = status ? 'WHERE e.status = $1' : '';
   const params = status ? [status] : [];
 
   const { rows } = await db.query<AdminEvent>(
     `SELECT e.id, e.title, e.occurred_at, e.status,
-            t.name AS type_name,
+            t.name AS type_name, t.color AS type_color,
+            e.country_code,
+            ST_X(e.geom) AS lng, ST_Y(e.geom) AS lat, -- for "Show on map"
             COALESCE(a.username, 'Satellite (automatic)') AS created_by_username
        FROM events e
        JOIN event_types t ON t.id = e.event_type_id
        LEFT JOIN admins a ON a.id = e.created_by -- LEFT: satellite events have no admin and must still be listed
       ${where}
       ORDER BY e.occurred_at DESC
-      LIMIT 100`,
+      LIMIT ${ADMIN_LIMIT}`,
     params,
   );
   return rows;
