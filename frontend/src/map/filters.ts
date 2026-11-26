@@ -9,6 +9,7 @@ export type Category =
   | 'rockets'
   | 'drones'
   | 'events'
+  | 'sea_fires' // fires at sea seen by the satellite (events with icon 'fire')
   | 'frontlines'
   | 'fighting'
   | 'explosion'
@@ -26,6 +27,7 @@ export const ALL_VISIBLE: Visible = {
   rockets: true,
   drones: true,
   events: true,
+  sea_fires: true,
   frontlines: true,
   fighting: true,
   explosion: true,

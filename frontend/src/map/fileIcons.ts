@@ -1,7 +1,7 @@
 // Icons that came inside KMZ files (a tank, a flag…). They are saved on the server: /api/icons/12.
 // The map only loads one when a pin needs it: MapLibre asks for the missing picture, and we fetch it then.
 import type * as maplibregl from 'maplibre-gl'
-import { drawFire, drawPin } from './Eventslayer'
+import { drawFireDot, drawPin } from './Eventslayer'
 
 const API = `${import.meta.env.VITE_API_URL ?? ''}/api`
 
@@ -23,9 +23,9 @@ export function enableFileIcons(map: maplibregl.Map) {
       if (!map.hasImage(id)) map.addImage(id, drawPin(id.slice(4)), { pixelRatio: 2 })
       return
     }
-    // Fires at sea: "fire-#FF6D00" → an orange badge with a flame
-    if (id.startsWith('fire-')) {
-      if (!map.hasImage(id)) map.addImage(id, drawFire(id.slice(5)), { pixelRatio: 2 })
+    // Fires at sea: one red dot for all of them
+    if (id === 'fire-dot') {
+      if (!map.hasImage(id)) map.addImage(id, drawFireDot(), { pixelRatio: 2 })
       return
     }
 

@@ -260,11 +260,20 @@ export default function MapPage() {
     }
   }, [map, reachOn, country, weapons])
 
-  // Events: the selected country only, or none when switched off. Grouped only when the Group button is on.
+  // Events: the selected country only. Strikes and sea fires (satellite) each have their own switch.
+  // Grouped only when the Group button is on.
   useEffect(() => {
     if (!map) return
-    showEvents(map, visible.events ? events.filter((e) => e.id !== hiddenItem.event && inCountry(e.country_code, country)) : [])
-  }, [map, events, visible.events, country, hiddenItem.event])
+    showEvents(
+      map,
+      events.filter(
+        (e) =>
+          e.id !== hiddenItem.event &&
+          inCountry(e.country_code, country) &&
+          (e.icon === 'fire' ? visible.sea_fires : visible.events),
+      ),
+    )
+  }, [map, events, visible.events, visible.sea_fires, country, hiddenItem.event])
 
   // Frontlines: right country, side switched on, not the layer being edited,
   // and inside each layer only the shapes whose switch is on (frontlines / fighting / explosion)
@@ -460,7 +469,7 @@ export default function MapPage() {
   const typeCounts: Partial<Record<Category, number>> = {}
   const addOne = (category: Category) => (typeCounts[category] = (typeCounts[category] ?? 0) + 1)
   for (const l of locations) if (inCountry(l.country_code, country)) addOne(l.type_code as Category)
-  for (const e of events) if (inCountry(e.country_code, country)) addOne('events')
+  for (const e of events) if (inCountry(e.country_code, country)) addOne(e.icon === 'fire' ? 'sea_fires' : 'events')
   // Fighting / explosion icons drawn inside the country's frontline layers
   for (const l of layers) {
     if (!inCountry(l.country_code, country)) continue

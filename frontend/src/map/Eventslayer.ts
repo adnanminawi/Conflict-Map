@@ -57,39 +57,37 @@ export function drawPin(color: string) {
   return ctx.getImageData(0, 0, w, h)
 }
 
-// A flame, drawn on a 24 × 24 grid (like an SVG icon)
-const FLAME = new Path2D(
-  'M12 3c1.5 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 0 2 1 3 2 3-.5-3-.5-5.5.5-8z',
-)
-
-// Fires at sea (satellite): a round badge with a white flame, not a pin, so they don't look like a confirmed strike.
-// Centered on the spot. Drawn at double size like the pins. Used by fileIcons.ts ("fire-#FF6D00").
-export function drawFire(color: string) {
-  const size = 52
+// Fires at sea (satellite): a small red dot with a soft glow, like the fire dots on NASA's FIRMS map.
+// Always red, whatever the event type's color: it reads as "a satellite saw heat here", not as a confirmed strike.
+// Centered on the spot. Drawn at double size like the pins. Used by fileIcons.ts ("fire-dot").
+export function drawFireDot() {
+  const size = 40
+  const c = size / 2 // the center
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
   const ctx = canvas.getContext('2d')!
 
-  // The badge: the type's color with a white ring
-  ctx.beginPath()
-  ctx.arc(26, 26, 23, 0, Math.PI * 2)
-  ctx.fillStyle = color
-  ctx.fill()
-  ctx.lineWidth = 3
-  ctx.strokeStyle = '#ffffff'
-  ctx.stroke()
+  // The glow: red in the middle, fading to nothing at the edge
+  const glow = ctx.createRadialGradient(c, c, 4, c, c, c)
+  glow.addColorStop(0, 'rgba(255, 40, 20, 0.55)')
+  glow.addColorStop(1, 'rgba(255, 40, 20, 0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(0, 0, size, size)
 
-  // The flame: the 24-unit drawing made 1.75 times bigger and centered (24 × 1.75 = 42, (52 - 42) / 2 = 5)
-  ctx.translate(5, 5)
-  ctx.scale(1.75, 1.75)
-  ctx.fillStyle = '#ffffff'
-  ctx.fill(FLAME)
+  // The dot: bright red with a darker rim, so it shows on the light map and on the blue sea
+  ctx.beginPath()
+  ctx.arc(c, c, 8, 0, Math.PI * 2)
+  ctx.fillStyle = '#ff2a14'
+  ctx.fill()
+  ctx.lineWidth = 2
+  ctx.strokeStyle = '#a30d00'
+  ctx.stroke()
 
   return ctx.getImageData(0, 0, size, size)
 }
 
-// Which picture each event gets: a fire badge for icon 'fire' (fires at sea), a pin for everything else
+// Which picture each event gets: the red dot for icon 'fire' (fires at sea), a pin for everything else
 const IS_FIRE: maplibregl.ExpressionSpecification = ['==', ['get', 'icon'], 'fire']
 
 export function setupEventLayers(map: maplibregl.Map) {
@@ -130,23 +128,22 @@ export function setupEventLayers(map: maplibregl.Map) {
   })
 
   // 4. Single events: a pin in the event type's color, its tip on the spot.
-  //    Fires at sea: the fire badge instead, its center on the spot.
+  //    Fires at sea: the red dot instead, its center on the spot.
   map.addLayer({
     id: 'events-pins',
     type: 'symbol',
     source: 'events',
     filter: ['!', ['has', 'point_count']],
     layout: {
-      'icon-image': ['case', IS_FIRE, ['concat', 'fire-', ['get', 'color']], ['concat', 'pin-', ['get', 'color']]],
+      'icon-image': ['case', IS_FIRE, 'fire-dot', ['concat', 'pin-', ['get', 'color']]],
       'icon-anchor': ['case', IS_FIRE, 'center', 'bottom'],
-      // The fire badge grows with the zoom: small when looking at the whole region, full size close up.
-      // (MapLibre wants ['zoom'] at the top of 'interpolate': the badge/pin choice goes in each step.)
+      // The red dot grows with the zoom: small when looking at the whole region, bigger close up.
+      // (MapLibre wants ['zoom'] at the top of 'interpolate': the dot/pin choice goes in each step.)
       'icon-size': [
         'interpolate', ['linear'], ['zoom'],
-        3, ['case', IS_FIRE, 0.45, 1],
-        5, ['case', IS_FIRE, 0.6, 1],
-        7, ['case', IS_FIRE, 0.85, 1],
-        9, ['case', IS_FIRE, 1.15, 1],
+        3, ['case', IS_FIRE, 0.55, 1],
+        6, ['case', IS_FIRE, 0.8, 1],
+        9, ['case', IS_FIRE, 1.1, 1],
       ],
       'icon-allow-overlap': true, // show every event, even when they overlap
     },

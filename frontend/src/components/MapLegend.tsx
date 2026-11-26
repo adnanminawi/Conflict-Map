@@ -24,7 +24,7 @@ interface Props {
 }
 
 // The types the visitor can show / hide, in this order, with the same picture as on the map.
-// Strikes have no picture of their own (each event type has its color): a red dot stands for them.
+// Strikes and sea fires have no picture file: LegendMark draws theirs.
 const TYPES: { category: Category; label: string; icon?: string }[] = [
   { category: 'military_base', label: 'Military bases', icon: militaryBaseIcon },
   { category: 'airport', label: 'Airports', icon: airportIcon },
@@ -33,9 +33,22 @@ const TYPES: { category: Category; label: string; icon?: string }[] = [
   { category: 'radar', label: 'Radars', icon: radarIcon },
   { category: 'missile_base', label: 'Missile bases', icon: missileBaseIcon },
   { category: 'events', label: 'Strikes' },
+  { category: 'sea_fires', label: 'Sea fires (satellite)' },
   { category: 'fighting', label: 'Fighting', icon: fightingIcon },
   { category: 'explosion', label: 'Explosions', icon: explosionIcon },
 ]
+
+// The mark for a type with no picture: strikes are pins on the map (a small red pin here),
+// sea fires are the glowing red dot.
+function LegendMark({ category }: { category: Category }) {
+  if (category === 'sea_fires') return <span className="map-key-dot fire" aria-hidden="true" />
+  return (
+    <svg className="map-key-pin" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
+  )
+}
 
 // The map key: a small see-through box in the bottom-left corner of the map.
 // It explains the frontline colors and the icons, and each checkbox shows or hides that side, layer or type.
@@ -112,7 +125,11 @@ export default function MapLegend({
                 {types.map((t) => (
                   <label key={t.category} className={visible[t.category] ? 'map-key-row' : 'map-key-row off'}>
                     <input type="checkbox" checked={visible[t.category]} onChange={() => onToggle(t.category)} />
-                    {t.icon ? <img className="map-key-icon" src={t.icon} alt="" /> : <span className="map-key-dot" aria-hidden="true" />}
+                    {t.icon ? (
+                      <img className="map-key-icon" src={t.icon} alt="" />
+                    ) : (
+                      <LegendMark category={t.category} />
+                    )}
                     <span className="map-key-label">{t.label}</span>
                     <span className="map-key-count">{counts[t.category]}</span>
                   </label>
