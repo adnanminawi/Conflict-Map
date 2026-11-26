@@ -1911,3 +1911,140 @@ div.reach-weapon {
   outline: 2px solid var(--red);
   outline-offset: 2px;
 }
+/* ---------- Bases tab: countries → groups → tables ---------- */
+
+/* "All countries" in the title, and country names in the table: look like links */
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.base-table-wrap {
+  overflow-x: auto; /* small screens: the table scrolls, not the page */
+  margin: 4px 0 12px;
+}
+
+.base-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.base-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.base-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.base-table .col-check {
+  width: 28px;
+}
+
+.base-table .col-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.base-table .col-actions .btn + .btn {
+  margin-left: 6px;
+}
+
+.base-table a.btn {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.country-table tr.clickable {
+  cursor: pointer;
+}
+
+.country-table tr.clickable:hover td {
+  background: var(--input);
+}
+
+/* One group line: ▸ Air defence  80  12 no system */
+.base-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 4px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.base-group-head:hover {
+  background: var(--input);
+}
+
+.base-group-title {
+  font-weight: 600;
+}
+
+/* Systems sit indented under their type */
+.base-subgroup .base-group-head {
+  padding-left: 28px;
+}
+
+.base-subgroup .base-group-title {
+  font-weight: 500;
+}
+
+.base-group-arrow {
+  width: 12px;
+  color: var(--muted);
+}
+
+/* "No system": needs the admin's attention */
+.pill-warn {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(227, 179, 65, 0.15);
+  color: #e3b341;
+  font-size: 12px;
+}
+
+.warn-text {
+  color: #e3b341;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* .muted is made for subtitles (negative margin): not inside the tables and group lines */
+.base-table .muted,
+.base-group-head .muted {
+  margin: 0;
+  font-size: inherit;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 8px;
+}
