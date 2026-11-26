@@ -5,7 +5,7 @@
 import AdmZip from 'adm-zip';
 import { DOMParser } from '@xmldom/xmldom';
 import { kml, kmlWithFolders } from '@tmcw/togeojson';
-import type { Feature } from 'geojson';
+import type { Feature, Geometry } from 'geojson';
 import { AppError } from './AppError';
 import { cleanText } from './shapes';
 
@@ -40,6 +40,18 @@ function readFeatures(file: Buffer, fileName: string): Feature[] {
 }
 
 // ---------- Points (bases / airports) ----------
+
+// Where a pin is: a Point, or a Point drawn together with the site's outline
+// (Google Earth "MultiGeometry": one pin + one polygon around the site, as in GEOIMINT files).
+// Returns [lng, lat], or null when it isn't a pin (a line, an area, or several points).
+export function pinPoint(geometry: Geometry | null | undefined): number[] | null {
+  if (geometry?.type === 'Point') return geometry.coordinates;
+  if (geometry?.type === 'GeometryCollection') {
+    const points = geometry.geometries.filter((g) => g.type === 'Point');
+    if (points.length === 1) return (points[0] as { coordinates: number[] }).coordinates; // the outline is left out
+  }
+  return null;
+}
 
 export interface KmlPoint {
   name: string | null; // null = no real name in the file
@@ -84,13 +96,14 @@ export function parseKml(file: Buffer, fileName: string): ParsedKml {
   const result: ParsedKml = { found: features.length, points: [], notPoints: 0, invalid: 0 };
 
   for (const { feature, folder } of features) {
-    // Only points (pins). Shapes like polygons are skipped here.
-    if (feature.geometry?.type !== 'Point') {
+    // Only pins (a point, or a point with its site's outline). Shapes like polygons are skipped here.
+    const point = pinPoint(feature.geometry);
+    if (!point) {
       result.notPoints++;
       continue;
     }
 
-    const [lng, lat] = feature.geometry.coordinates; // KML = lng, lat, (altitude)
+    const [lng, lat] = point; // KML = lng, lat, (altitude)
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
       result.invalid++;
       continue;

@@ -195,6 +195,7 @@ export interface Weapon {
   side_id: number | null // null = the country has no sides
   side_name: string | null
   side_color: string | null
+  linked_sites?: number // only right after adding / saving: sites on the map that got linked to it
 }
 
 // What the admin form sends (POST /api/weapons and PUT /api/weapons/:id)
@@ -284,6 +285,8 @@ export interface PreviewFolder {
   unclear: number // pins with no type: they get typeCode
   fileIcons: number // pins whose icon is a picture inside the KMZ
   typeCode: string
+  // Air defence / radar pins: found in Weapons (their range shows), and the systems missing from it, e.g. { 'SA-2': 28 }
+  systems: { linked: number; missing: Record<string, number> }
   countries: Record<string, number> // pins per country, e.g. { YE: 40, SA: 1 }
   sideId: number | null
   layerName: string
@@ -306,7 +309,7 @@ export interface FolderChoice {
 }
 
 export interface MapImportResult {
-  bases: { saved: number; duplicates: number; linked: number; byType: Record<string, number> }
+  bases: { saved: number; duplicates: number; linked: number; missing: Record<string, number>; byType: Record<string, number> }
   layers: { name: string; replaced: boolean; areas: number; lines: number; icons: number }[]
   events: { saved: number; duplicates: number }
   skipped: number

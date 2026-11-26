@@ -4,12 +4,14 @@
 
 const RULES: { type: string; words: RegExp }[] = [
   // Radars first: "EL/M-2080" is the Arrow system's radar, not a launcher
-  { type: 'radar', words: /\bradars?\b|^EL\/M-|^AN\/(TPY|MPQ|TPQ|FPS|SPY)|aerostat|رادار/i },
+  // EWR = early warning radar
+  { type: 'radar', words: /\bradars?\b|\bEWR\b|early warning|^EL\/M-|^AN\/(TPY|MPQ|TPQ|FPS|SPY)|aerostat|رادار/i },
   {
     type: 'air_defence',
-    // "ID" / "DS" only as the whole name (Iron Dome / David's Sling): as part of a word they mean other things
+    // "ID" / "DS" only as the whole name (Iron Dome / David's Sling): as part of a word they mean other things.
+    // SA-2, SA-20B…: NATO names of Russian air defence. S-75 … S-400: their Russian names (S-300PMU2 = a version).
     words:
-      /^(ID|DS)$|iron dome|david'?s sling|\barrow\b|patriot|thaad|nasams|iris-t|\bS-?[34]00\b|pantsir|bavar|khordad|\bhawk\b|\bSAMs?\b|air defen[cs]e|دفاع جوي|الدفاع الجوي|دفاعات جوية|الدفاعات الجوية|القبة الحديدية/i,
+      /^(ID|DS)$|iron dome|david'?s sling|\barrow\b|patriot|thaad|nasams|iris-t|\bSA-?\d{1,2}[A-Z]?\b|\bS-?(75|125|200|300|400|500)|\bbuk\b|\bkrug\b|\bkub\b|\bbarak\b|\bHQ-?\d+|pantsir|bavar|khordad|\bhawk\b|\bSAMs?\b|air defen[cs]e|دفاع جوي|الدفاع الجوي|دفاعات جوية|الدفاعات الجوية|القبة الحديدية/i,
   },
   // Attack missiles (after air defence: "Patriot missile" is air defence)
   { type: 'missile_base', words: /missile|ballistic|launcher|صاروخ|صواريخ|منصة إطلاق|منصات إطلاق/i },
@@ -23,6 +25,17 @@ const RULES: { type: string; words: RegExp }[] = [
 export function classifySite(text: string | null): string | null {
   if (!text) return null;
   return RULES.find((rule) => rule.words.test(text.trim()))?.type ?? null;
+}
+
+// A folder path's type, from its last folder up: "Air Defence & Radar … / Air Defense / SA-2 (S-75)"
+// → "SA-2 (S-75)" is air defence. (The whole path at once would say radar, from the word "Radar" in the first folder.)
+export function classifyFolder(path: string | null): string | null {
+  if (!path) return null;
+  for (const part of path.split(' / ').reverse()) {
+    const type = classifySite(part);
+    if (type) return type;
+  }
+  return null;
 }
 
 // Google My Maps writes each pin's icon number in its style: "#icon-1504-0288D1-nodesc" → 1504.
@@ -48,17 +61,4 @@ export function classifyIcon(style: unknown, iconLink: unknown): string | null {
   return null;
 }
 
-// Short names some KML files use for a system: the pin's name → the system's name in the weapons table.
-// Add a line here when a new file uses another short name.
-const SYSTEM_ALIASES: Record<string, string> = {
-  id: 'Iron Dome',
-  ds: "David's Sling",
-  'arrow-2/3': 'Arrow 2',
-};
-
-// The system a pin's name stands for (an alias, or the name itself), in lower case for comparing.
-// "ID" → "iron dome", "THAAD" → "thaad"
-export function systemNameOf(pinName: string): string {
-  const key = pinName.trim().toLowerCase();
-  return (SYSTEM_ALIASES[key] ?? key).toLowerCase();
-}
+// Which system a site is (to link it to the weapons table): see systemMatch.ts

@@ -6,7 +6,8 @@ import { parseKml } from '../utils/kml';
 import { db } from '../config/db';
 import { fileIcons } from './fileIcons.service';
 import { checkIcon } from './icons.service';
-import { classifySite, systemNameOf } from '../utils/classifySite';
+import { classifyFolder, classifySite } from '../utils/classifySite';
+import { makeSystemFinder } from '../utils/systemMatch';
 import { checkCountry } from './countries.service';
 
 export async function getLocations() {
@@ -73,13 +74,9 @@ export async function importKml(
   const icons = fileIcons(file, fileName); // the pictures inside a KMZ (none in a .kml)
   const autoNamedPerType: Record<string, number> = {}; // for names like "Radar IL-003"
 
-  // This country's systems, by type and name: "air_defence:iron dome" → its weapon id.
-  // A pin is linked only to a system of its own type (an airport never gets Iron Dome).
-  const systems = new Map(
-    (await weaponsRepository.findAll())
-      .filter((w) => w.country_code === country)
-      .map((w) => [`${w.type_code}:${w.name.toLowerCase()}`, w.id]),
-  );
+  // Finds an air defence / radar pin's system in the weapons table, from its name, description or folder
+  // ("SA-2" → S-75). Only a system of its own type and this country (an airport never gets Iron Dome).
+  const findSystem = makeSystemFinder(await weaponsRepository.findAll());
 
   // The pins accepted so far from this file. A preview saves nothing, so the database can't see
   // two close pins of the same file: this list does, so the preview and the import give the same numbers.
@@ -88,7 +85,7 @@ export async function importKml(
   for (const point of parsed.points) {
     // Its type: from its name, else from its folder, else the admin's chosen type.
     // A guess for a type the database doesn't have (yet) also falls back to the chosen type.
-    let code = classifySite(point.name) ?? classifySite(point.folder) ?? typeCode;
+    let code = classifySite(point.name) ?? classifyFolder(point.folder) ?? typeCode;
     if (!types.has(code)) code = typeCode;
     const type = types.get(code)!;
 
@@ -109,8 +106,8 @@ export async function importKml(
       name = `${prettyType(code)} ${country}-${String(autoNamedPerType[code]).padStart(3, '0')}`;
     }
 
-    // An air defence / radar pin named after a known system ("ID", "THAAD"…) → linked to it
-    const weaponId = point.name ? systems.get(`${code}:${systemNameOf(point.name)}`) ?? null : null;
+    // An air defence / radar pin → linked to its system ("ID" → Iron Dome, "SA-2" → S-75)
+    const weaponId = findSystem([point.name, point.description, point.folder], code, [country]);
     if (weaponId !== null) summary.linked++;
     else if (code === 'air_defence' || code === 'radar') summary.noSystem++;
 

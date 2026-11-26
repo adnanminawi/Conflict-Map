@@ -48,6 +48,23 @@ export async function existsNear(lng: number, lat: number, typeId: number, meter
 }
 
 // Saves one location and returns its id.
+// Air defence / radar sites of one country that have no system yet, to link them when their system is added.
+export async function findUnlinkedSites(countryCode: string, typeCode: string): Promise<{ id: number; name: string; description: string | null }[]> {
+  const { rows } = await db.query(
+    `SELECT l.id, l.name, l.description
+       FROM locations l
+       JOIN location_types t ON t.id = l.location_type_id
+      WHERE l.weapon_id IS NULL AND l.country_code = $1 AND t.code = $2`,
+    [countryCode, typeCode],
+  );
+  return rows;
+}
+
+// Links several sites to one system. = ANY($2): "id is one of the ids in the list"
+export async function setWeapon(ids: number[], weaponId: number): Promise<void> {
+  await db.query('UPDATE locations SET weapon_id = $1 WHERE id = ANY($2::int[])', [weaponId, ids]);
+}
+
 export async function insert(loc: LocationRow): Promise<number> {
   const { rows } = await db.query<{ id: number }>(
     `INSERT INTO locations (location_type_id, weapon_id, name, country_code, geom, description, icon_id)

@@ -97,7 +97,9 @@ export default function WeaponsAdmin({ onLoggedOut }: Props) {
     }
     try {
       const saved = editingId === null ? await createWeapon(input) : await updateWeapon(editingId, input)
-      setMessage(`${editingId === null ? 'Added' : 'Saved'} "${saved.name}" (${saved.range_km} km)`)
+      // Air defence / radar: sites already on the map with its name ("SA-2" sites for S-75) were linked to it
+      const linked = saved.linked_sites ? `. ${saved.linked_sites} site(s) on the map linked to it` : ''
+      setMessage(`${editingId === null ? 'Added' : 'Saved'} "${saved.name}" (${saved.range_km} km)${linked}`)
       resetForm()
       await loadWeapons()
     } catch (err) {

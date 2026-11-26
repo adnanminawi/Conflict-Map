@@ -245,6 +245,20 @@ export default function MapImport({ onLoggedOut }: Props) {
                           </label>
                         )}
                       </div>
+                      {/* Air defence / radar: their range only shows if their system is in the Weapons tab */}
+                      {f.systems.linked > 0 && (
+                        <span className="import-folder-meta">Linked to a system in Weapons: {count(f.systems.linked, 'site')}</span>
+                      )}
+                      {Object.keys(f.systems.missing).length > 0 && (
+                        <p className="import-warning">
+                          Not in the Weapons tab, so no range will show:{' '}
+                          {Object.entries(f.systems.missing)
+                            .map(([name, n]) => `${name} (${n})`)
+                            .join(', ')}
+                          . Add them there with their range (before or after importing: they get linked when you add
+                          them).
+                        </p>
+                      )}
                       {countryCodes.length > 1 && (
                         <label className="bulk-check">
                           <input
@@ -359,6 +373,14 @@ export default function MapImport({ onLoggedOut }: Props) {
               </li>
             )}
             {result.bases.linked > 0 && <li>Air defence / radar linked to their system: {result.bases.linked}</li>}
+            {Object.keys(result.bases.missing).length > 0 && (
+              <li>
+                No system in Weapons yet (add it there, they get linked):{' '}
+                {Object.entries(result.bases.missing)
+                  .map(([name, n]) => `${name} (${n})`)
+                  .join(', ')}
+              </li>
+            )}
             {result.bases.duplicates > 0 && <li>Bases already on the map (skipped): {result.bases.duplicates}</li>}
             {result.layers.map((l) => (
               <li key={l.name}>
