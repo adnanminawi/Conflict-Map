@@ -2416,4 +2416,44 @@ div.reach-weapon {
 .map-key-row.off .map-key-dot,
 .map-key-row.off .map-key-label {
   opacity: 0.45;
+}/* Map key: sea fires, the glowing red dot they have on the map */
+.map-key-dot.fire {
+  background: #ff2a14;
+  border: 1.5px solid #a30d00;
+  box-shadow: 0 0 0 3px rgba(255, 40, 20, 0.25);
+}
+
+/* Map key: strikes, a small red pin like on the map */
+.map-key-pin {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.map-key-pin path {
+  fill: var(--red);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.map-key-pin circle {
+  fill: #ffffff;
+}
+
+.map-key-row.off .map-key-pin {
+  opacity: 0.45;
+}
+/* ---------- News tab ---------- */
+
+/* The countries column stays narrow: the title gets the room */
+.news-table th:nth-child(3) {
+  width: 140px;
+}
+
+.news-table .col-actions {
+  width: 200px;
+}
+
+.pill-muted.no-gap {
+  margin-left: 0;
 }
