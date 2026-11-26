@@ -8,20 +8,10 @@ const SKIP_WORDS = /cit(y|ies)|towns?|villages?|mountains?|المدن|مدن|ق�
 // Folders of strikes → events
 const STRIKE_WORDS = /strikes?|air ?raids?|bombing|shelling|attacks|غارة|غارات|قصف|استهداف|ضربة|ضربات/i;
 
-// The last folder of a path ("… / Site (Active) / Equipment" → "Equipment"), for the rules below
-const lastFolder = (path: string) => path.split(' / ').pop() ?? path;
-
-// Parts of a site: each launcher, radar truck or bunker has its own pin in some files (GEOIMINT).
-// The site itself is one pin in the folder above ("Site (Active)"), so these would only crowd the map.
-const SITE_PARTS = /^(equipment|facilities|المعدات|المنشآت)$/i;
-
-// Sites marked as not in use: "Site (Inactive)", "Site (Empty)", "Category: Empty". On the map they'd look active.
-const NOT_IN_USE = /\b(inactive|empty|abandoned|demolished)\b|غير نشط|مهجور/i;
-
-// Folders skipped unless the admin changes it in the preview
+// Folders skipped unless the admin changes it in the preview: only places that are not military (cities, mountains).
+// Everything else in the file is kept, also site parts (launchers, bunkers) and inactive sites.
 export function isSkipFolder(name: string): boolean {
-  const last = lastFolder(name);
-  return SKIP_WORDS.test(name) || SITE_PARTS.test(last) || name.split(' / ').some((part) => NOT_IN_USE.test(part));
+  return SKIP_WORDS.test(name);
 }
 
 export function isStrikeFolder(name: string): boolean {
