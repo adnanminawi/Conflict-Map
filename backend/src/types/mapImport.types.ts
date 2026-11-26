@@ -16,6 +16,9 @@ export interface PreviewFolder {
   unclear: number; // pins with no type found: they get the folder's type (typeCode)
   fileIcons: number;
   typeCode: string; // the type for unclear pins (guessed from the folder's name, else military_base)
+  // Air defence / radar pins: how many were found in the weapons table (their range shows),
+  // and the ones missing from it by name, e.g. { 'SA-2': 28 } (add them in the Weapons tab first)
+  systems: { linked: number; missing: Record<string, number> };
   countries: Record<string, number>; // pins per country found from the borders, e.g. { YE: 36, SA: 2 }
   sideId: number | null; // frontlines: the guessed side (null = the admin must choose)
   layerName: string; // frontlines: the layer name (the folder's name)
@@ -39,7 +42,8 @@ export interface FolderChoice {
 
 // What the import did
 export interface MapImportResult {
-  bases: { saved: number; duplicates: number; linked: number; byType: Record<string, number> };
+  // linked = air defence / radar sites linked to their system; missing = systems not in the weapons table, e.g. { 'SA-2': 28 }
+  bases: { saved: number; duplicates: number; linked: number; missing: Record<string, number>; byType: Record<string, number> };
   layers: { name: string; replaced: boolean; areas: number; lines: number; icons: number }[];
   events: { saved: number; duplicates: number };
   skipped: number; // placemarks in "skip" folders, plus lines / areas in bases or strikes folders

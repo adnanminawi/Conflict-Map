@@ -18,16 +18,27 @@ import {
   type PreviewFolder,
 } from '../types/mapImport.types';
 import { AppError } from '../utils/AppError';
-import { classifyIcon, classifySite, systemNameOf } from '../utils/classifySite';
-import { readFolders, type KmlFolder } from '../utils/kml';
+import { classifyFolder, classifyIcon, classifySite } from '../utils/classifySite';
+import { pinPoint, readFolders, type KmlFolder } from '../utils/kml';
 import { frontlineIcon, guessSide, isSkipFolder, isStrikeFolder } from '../utils/mapImportRules';
 import { cleanShapes, cleanText } from '../utils/shapes';
+import { makeSystemFinder } from '../utils/systemMatch';
 import { checkCountry } from './countries.service';
 import { fileIcons } from './fileIcons.service';
 
 const DUPLICATE_METERS = 50; // same type closer than this = the same base / strike
 const DEFAULT_BASE_TYPE = 'military_base';
 const DEFAULT_NAMES = /^(untitled placemark|unnamed|placemark)$/i; // Google Earth's name for a new pin = no name
+const SYSTEM_TYPES = ['air_defence', 'radar']; // site types that are linked to a system of the weapons table
+
+// The name shown for a pin's system when it isn't in the weapons table: its name, else its folder's last part.
+// The start of its description is added: "EWR" alone doesn't say which radar, "EWR (1 x 36D6)" does.
+function systemLabel(pin: Pin, folderName: string): string {
+  const name = pin.name ?? folderName.split(' / ').pop() ?? folderName;
+  if (!pin.description) return name;
+  const start = pin.description.length > 30 ? `${pin.description.slice(0, 30).trim()}…` : pin.description;
+  return `${name} (${start})`;
+}
 
 // ---------- Reading the folders ----------
 
@@ -47,8 +58,9 @@ function readPins(folder: KmlFolder): { pins: Pin[]; invalid: number } {
   let invalid = 0;
 
   for (const placemark of folder.placemarks) {
-    if (placemark.geometry?.type !== 'Point') continue;
-    const [lng, lat] = placemark.geometry.coordinates;
+    const point = pinPoint(placemark.geometry); // a point, or a point with its site's outline
+    if (!point) continue;
+    const [lng, lat] = point;
     const ok = Number.isFinite(lng) && Number.isFinite(lat) && Math.abs(lng) <= 180 && Math.abs(lat) <= 90;
     if (!ok || (lng === 0 && lat === 0)) {
       invalid++;
@@ -74,7 +86,8 @@ function countShapes(folder: KmlFolder) {
   };
   for (const placemark of folder.placemarks) {
     const g = placemark.geometry;
-    if (g?.type === 'GeometryCollection') g.geometries.forEach((part) => add(part.type));
+    if (g?.type === 'GeometryCollection' && pinPoint(g)) counts.points++; // a pin with its site's outline = one pin
+    else if (g?.type === 'GeometryCollection') g.geometries.forEach((part) => add(part.type));
     else add(g?.type);
   }
   return counts;
@@ -89,14 +102,14 @@ function guessAction(folder: KmlFolder, counts: ReturnType<typeof countShapes>, 
   if (shapes > 0 && shapes >= counts.points) return 'layer';
   if (isStrikeFolder(folder.name)) return 'events';
   const typed = pins.filter((p) => p.type !== null).length;
-  if (pins.length > 0 && (classifySite(folder.name) !== null || typed >= pins.length / 2)) return 'bases';
+  if (pins.length > 0 && (classifyFolder(folder.name) !== null || typed >= pins.length / 2)) return 'bases';
   if (shapes > 0) return 'layer';
   return 'skip';
 }
 
 // The type for a folder's unclear pins: from the folder's name ("Airports" → airport), else a military base
 function folderType(folder: KmlFolder, typeCodes: Set<string>): string {
-  const code = classifySite(folder.name);
+  const code = classifyFolder(folder.name);
   return code && typeCodes.has(code) ? code : DEFAULT_BASE_TYPE;
 }
 
@@ -120,6 +133,7 @@ export async function previewMap(file: Buffer, fileName: string, country: string
   const typeCodes = new Set((await locationsRepository.findTypes()).map((t) => t.code));
   const sides = await sidesRepository.findAll();
   const icons = fileIcons(file, fileName); // the pictures inside a KMZ (none in a .kml)
+  const findSystem = makeSystemFinder(await weaponsRepository.findAll());
 
   // The country of every pin of the file, in one query
   const pinsPerFolder = folders.map((f) => readPins(f).pins);
@@ -137,9 +151,23 @@ export async function previewMap(file: Buffer, fileName: string, country: string
       else unclear++;
     }
 
-    const countries: Record<string, number> = {};
-    for (const code of allCountries.slice(next, next + pins.length)) countries[code] = (countries[code] ?? 0) + 1;
+    const pinCountries = allCountries.slice(next, next + pins.length);
     next += pins.length;
+    const countries: Record<string, number> = {};
+    for (const code of pinCountries) countries[code] = (countries[code] ?? 0) + 1;
+
+    // Air defence / radar pins: found in the weapons table (their range will show), or missing from it
+    const unclearType = folderType(folder, typeCodes);
+    const systems = { linked: 0, missing: {} as Record<string, number> };
+    pins.forEach((pin, i) => {
+      const type = pin.type && typeCodes.has(pin.type) ? pin.type : unclearType;
+      if (!SYSTEM_TYPES.includes(type)) return;
+      if (findSystem([pin.name, pin.description, folder.name], type, [pinCountries[i], country]) !== null) systems.linked++;
+      else {
+        const label = systemLabel(pin, folder.name);
+        systems.missing[label] = (systems.missing[label] ?? 0) + 1;
+      }
+    });
 
     const shapeNames = folder.placemarks.map((p) => cleanText(p.properties?.name) ?? '');
     return {
@@ -150,7 +178,8 @@ export async function previewMap(file: Buffer, fileName: string, country: string
       baseTypes,
       unclear,
       fileIcons: pins.filter((pin) => icons.has(pin.iconLink)).length,
-      typeCode: folderType(folder, typeCodes),
+      typeCode: unclearType,
+      systems,
       countries,
       sideId: guessSide(folder.name, shapeNames, sides, country),
       layerName: folder.name.slice(0, 150),
@@ -177,13 +206,11 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
   const eventTypes = new Map((await eventsRepository.findTypes()).map((t) => [t.id, t]));
   const sides = new Map((await sidesRepository.findAll()).map((s) => [s.id, s]));
 
-  // Air defence / radar systems by country, type and name: "IL:air_defence:iron dome" → weapon id
-  const systems = new Map(
-    (await weaponsRepository.findAll()).map((w) => [`${w.country_code}:${w.type_code}:${w.name.toLowerCase()}`, w.id]),
-  );
+  // Finds an air defence / radar pin's system in the weapons table ("SA-2" → the weapon "S-75")
+  const findSystem = makeSystemFinder(await weaponsRepository.findAll());
 
   const result: MapImportResult = {
-    bases: { saved: 0, duplicates: 0, linked: 0, byType: {} },
+    bases: { saved: 0, duplicates: 0, linked: 0, missing: {}, byType: {} },
     layers: [],
     events: { saved: 0, duplicates: 0 },
     skipped: 0,
@@ -245,7 +272,7 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
   const icons = fileIcons(input.file, input.fileName); // the pictures inside a KMZ (none in a .kml)
 
   // 3. Pins of the bases and strikes folders, with their country (one query for all of them)
-  const pinFolders: { choice: FolderChoice; pins: Pin[] }[] = [];
+  const pinFolders: { choice: FolderChoice; pins: Pin[]; folderName: string }[] = [];
   folders.forEach((folder, index) => {
     const choice = choices.get(index);
     if (!choice || choice.action === 'skip') {
@@ -256,7 +283,7 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
     const { pins, invalid } = readPins(folder);
     result.invalid += invalid;
     result.skipped += folder.placemarks.length - pins.length - invalid; // its lines / areas
-    pinFolders.push({ choice, pins });
+    pinFolders.push({ choice, pins, folderName: folder.name });
   });
   const countries = await countriesOf(pinFolders.flatMap((f) => f.pins), input.country);
 
@@ -267,7 +294,7 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
     await client.query('BEGIN');
 
     let next = 0; // position in countries
-    for (const { choice, pins } of pinFolders) {
+    for (const { choice, pins, folderName } of pinFolders) {
       for (const pin of pins) {
         const found = countries[next++];
         // Near a border the simplified borders can be wrong: the admin can put the whole folder in the file's country
@@ -280,11 +307,17 @@ export async function importMap(input: ImportMapInput, adminId: number): Promise
             result.bases.duplicates++;
             continue;
           }
-          // An air defence / radar pin named after a known system ("THAAD") → linked to it.
-          // The system of the pin's country first, else of the file's country.
-          const system = pin.name ? `${type.code}:${systemNameOf(pin.name)}` : null;
-          const weaponId = system ? systems.get(`${countryCode}:${system}`) ?? systems.get(`${input.country}:${system}`) ?? null : null;
-          if (weaponId !== null) result.bases.linked++;
+          // An air defence / radar pin → linked to its system, found in its name, description or folder
+          // ("SA-2" → S-75). The system of the pin's country first, else of the file's country.
+          let weaponId: number | null = null;
+          if (SYSTEM_TYPES.includes(type.code)) {
+            weaponId = findSystem([pin.name, pin.description, folderName], type.code, [countryCode, input.country]);
+            if (weaponId !== null) result.bases.linked++;
+            else {
+              const label = systemLabel(pin, folderName);
+              result.bases.missing[label] = (result.bases.missing[label] ?? 0) + 1;
+            }
+          }
 
           // Its own icon from the KMZ: the picture is saved (once) and linked to the base
           const iconId = await icons.idFor(client, pin.iconLink);

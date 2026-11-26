@@ -19,6 +19,7 @@ export interface Weapon {
   side_name: string; // 'Houthis'
   side_color: string; // '#A52714'
   country_code: string; // 'YE'
+  linked_sites?: number; // only after adding / saving: sites that got linked to it just now
 }
 
 // What the admin sends to add or change a weapon.
