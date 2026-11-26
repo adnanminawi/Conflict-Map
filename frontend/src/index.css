@@ -2340,4 +2340,80 @@ div.reach-weapon {
 
 .import-details[open] summary {
   margin-bottom: 10px;
+}/* ---------- Map key: "On the map" (bases, airports, air defence, strikes…) ---------- */
+.map-key-section {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+/* "On the map" and "Show all" on one line */
+.map-key-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.map-key-section-head .map-key-sub {
+  margin: 0;
+}
+
+.map-key-link {
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--red);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.map-key-link:hover {
+  color: var(--red-dark);
+}
+
+.map-key-link:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+/* The same picture as on the map */
+.map-key-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+/* Strikes: a red dot (each event type has its own color on the map) */
+.map-key-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin: 0 4px;
+  background: var(--red);
+  border: 1.5px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(29, 35, 41, 0.3);
+}
+
+.map-key-label {
+  flex: 1;
+  min-width: 0;
+}
+
+/* How many: on the right, numbers lined up */
+.map-key-count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+/* A type switched off steps back, like a hidden layer */
+.map-key-row.off .map-key-icon,
+.map-key-row.off .map-key-dot,
+.map-key-row.off .map-key-label {
+  opacity: 0.45;
 }

@@ -456,6 +456,20 @@ export default function MapPage() {
 
   const countries = findCountries(locations, events, layers)
 
+  // The map key's "On the map" list: how many of each type the selected country has (a type with 0 gets no row)
+  const typeCounts: Partial<Record<Category, number>> = {}
+  const addOne = (category: Category) => (typeCounts[category] = (typeCounts[category] ?? 0) + 1)
+  for (const l of locations) if (inCountry(l.country_code, country)) addOne(l.type_code as Category)
+  for (const e of events) if (inCountry(e.country_code, country)) addOne('events')
+  // Fighting / explosion icons drawn inside the country's frontline layers
+  for (const l of layers) {
+    if (!inCountry(l.country_code, country)) continue
+    for (const f of l.geojson.features) {
+      const icon = f.properties?.icon
+      if (icon === 'fighting' || icon === 'explosion') addOne(icon)
+    }
+  }
+
   // The newest frontline date of the selected country, e.g. "21 November 2026"
   const frontlineDate = layers
     .filter((l) => country !== ALL && l.country_code === country)
@@ -564,6 +578,8 @@ export default function MapPage() {
           showSirens={inCountry(ALERTS_COUNTRY, country)}
           visible={visible}
           onToggle={toggle}
+          counts={typeCounts}
+          onShowAll={() => setVisible(ALL_VISIBLE)}
         />
 
         {/* Right side: the map editors (admins only), left of the zoom buttons */}
