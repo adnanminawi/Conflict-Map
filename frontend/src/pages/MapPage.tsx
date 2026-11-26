@@ -118,11 +118,14 @@ export default function MapPage() {
       setStatus('Missing VITE_MAPTILER_KEY in frontend/.env.local')
       return
     }
+    // "Show on map" in the Bases admin opens /?focus=lng,lat: start zoomed on that base
+    const focus = new URLSearchParams(window.location.search).get('focus')?.split(',').map(Number)
+    const hasFocus = focus?.length === 2 && focus.every(Number.isFinite)
     const map = new maplibregl.Map({
       container: containerRef.current!,
       style: MAP_STYLE,
-      center: START_CENTER,
-      zoom: START_ZOOM,
+      center: hasFocus ? (focus as [number, number]) : START_CENTER,
+      zoom: hasFocus ? 13 : START_ZOOM,
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     // Under the zoom buttons. Starting to measure cancels placing a weapon (both use map clicks).

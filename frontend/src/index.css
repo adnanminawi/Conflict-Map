@@ -1911,3 +1911,433 @@ div.reach-weapon {
   outline: 2px solid var(--red);
   outline-offset: 2px;
 }
+/* ---------- Bases tab: countries → groups → tables ---------- */
+
+/* "All countries" in the title, and country names in the table: look like links */
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.base-table-wrap {
+  overflow-x: auto; /* small screens: the table scrolls, not the page */
+  margin: 4px 0 12px;
+}
+
+.base-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.base-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.base-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.base-table .col-check {
+  width: 28px;
+}
+
+.base-table .col-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.base-table .col-actions .btn + .btn {
+  margin-left: 6px;
+}
+
+.base-table a.btn {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.country-table tr.clickable {
+  cursor: pointer;
+}
+
+.country-table tr.clickable:hover td {
+  background: var(--input);
+}
+
+/* One group line: ▸ Air defence  80  12 no system */
+.base-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 4px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.base-group-head:hover {
+  background: var(--input);
+}
+
+.base-group-title {
+  font-weight: 600;
+}
+
+/* Systems sit indented under their type */
+.base-subgroup .base-group-head {
+  padding-left: 28px;
+}
+
+.base-subgroup .base-group-title {
+  font-weight: 500;
+}
+
+.base-group-arrow {
+  width: 12px;
+  color: var(--muted);
+}
+
+/* "No system": needs the admin's attention */
+.pill-warn {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(227, 179, 65, 0.15);
+  color: #e3b341;
+  font-size: 12px;
+}
+
+.warn-text {
+  color: #e3b341;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* .muted is made for subtitles (negative margin): not inside the tables and group lines */
+.base-table .muted,
+.base-group-head .muted {
+  margin: 0;
+  font-size: inherit;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 8px;
+}/* ---------- Events tab ---------- */
+
+/* The number of unverified events on the Events tab */
+.tab-count {
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e3b341;
+  background: rgba(227, 179, 65, 0.15);
+  border-radius: 999px;
+}
+
+/* Unverified · Confirmed · False · All, each with its count */
+.status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.status-tab {
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* the line under the active one sits on the border */
+  cursor: pointer;
+}
+
+.status-tab:hover {
+  color: var(--text);
+}
+
+.status-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+.status-count {
+  margin-left: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Country, type, when, search: one line, wraps on small screens */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card .filter-bar select,
+.card .filter-bar input {
+  width: auto;
+  flex: 1 1 150px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+/* The type and author under an event's title */
+.row-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.base-table .nowrap {
+  white-space: nowrap;
+}
+
+/* "Loading…" and "No events match": .muted has a negative margin for subtitles */
+.muted-line {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* "← Back to events" above the Add event form */
+.card.back-row {
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.card.back-row .btn {
+  align-self: flex-start;
+}/* ---------- Weapons tab ---------- */
+
+/* Numbers (range, sites) line up on the right */
+.base-table .col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A long source is cut with "…": the full text shows on hover */
+.base-table .cell-source {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Search + "Add weapon" side by side */
+.list-controls .btn {
+  white-space: nowrap;
+}
+
+/* Fixed column widths: the type tables of one country line up under each other */
+.weapon-table {
+  table-layout: fixed;
+}
+
+.weapon-table th:nth-child(1) {
+  width: auto;
+}
+
+.weapon-table .col-num {
+  width: 90px;
+}
+
+.weapon-table th.col-actions {
+  width: 150px;
+}/* ---------- Frontlines tab ---------- */
+
+/* A side's title above its table: color dot, name, how many layers */
+.side-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 4px 4px;
+}
+
+/* A hidden layer steps back */
+.base-table .row-hidden td {
+  color: var(--muted);
+}
+
+.pill-muted {
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(139, 149, 163, 0.15);
+  border-radius: 999px;
+}
+
+/* "2 older": opens the layer's history */
+.link-button.small {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.link-button.small:hover {
+  color: var(--text);
+}
+
+/* The older versions under a layer: smaller, no line between them */
+.base-table .version-row td {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 12px;
+  border-bottom: none;
+}
+
+.base-table .version-row:last-of-type td,
+.base-table .version-row + tr:not(.version-row) td {
+  border-top: none;
+}
+
+/* The same column widths in every side table, so they line up */
+.layer-table {
+  table-layout: fixed;
+}
+
+.layer-table th:nth-child(2) {
+  width: 130px;
+}
+
+.layer-table .col-num {
+  width: 70px;
+}
+
+.layer-table th:nth-last-child(2) {
+  width: 90px;
+}
+
+.layer-table th.col-actions {
+  width: 250px;
+}
+
+/* .muted has a negative margin for subtitles: not next to a side name */
+.side-group-head .muted {
+  margin: 0;
+}/* ---------- Import map: the short summary and the alerts ---------- */
+
+/* "Ready to import": neutral, not a warning */
+.import-summary.ready {
+  border-color: var(--border);
+  background: var(--input);
+}
+
+.import-summary .import-skipped-line {
+  color: var(--muted);
+}
+
+.import-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* One problem: a colored line on the left says how serious it is */
+.import-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 8px;
+}
+
+.import-alert p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Must be fixed before importing */
+.import-alert.alert-error {
+  border-left-color: #e5484d;
+  background: rgba(229, 72, 77, 0.08);
+}
+
+/* Imported anyway, but something is missing */
+.import-alert.alert-warn {
+  border-left-color: #e3b341;
+  background: rgba(227, 179, 65, 0.08);
+}
+
+/* Good to know */
+.import-alert.alert-info {
+  border-left-color: var(--muted);
+}
+
+.import-alert-note {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* "12 pins with no clear type will be saved as [Military base]": text and dropdown on one line */
+.card label.inline-field {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.card label.inline-field select {
+  width: auto;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+.import-ok {
+  margin: 0;
+  font-size: 14px;
+  color: #8fe0b8;
+}
+
+/* "Change folders (20)": the full list, folded */
+.import-details summary {
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.import-details summary:hover {
+  color: var(--text);
+}
+
+.import-details[open] summary {
+  margin-bottom: 10px;
+}

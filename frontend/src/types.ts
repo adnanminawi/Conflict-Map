@@ -59,6 +59,10 @@ export interface AdminEvent {
   occurred_at: string
   status: EventStatus
   type_name: string
+  type_color: string | null
+  country_code: string | null // null = old events with no country
+  lng: number
+  lat: number
   created_by_username: string
 }
 
@@ -254,6 +258,7 @@ export type NewsStatus = 'draft' | 'published'
 // What the admin sees (GET /api/news/admin)
 export interface AdminNewsItem extends NewsItem {
   status: NewsStatus
+  country_codes: string[] // the countries the item is about, e.g. ['YE', 'SA'] ([] = none found)
 }
 
 // What the admin sends to add or change one base on the map (POST / PUT /api/locations)

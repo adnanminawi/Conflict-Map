@@ -47,13 +47,13 @@ export async function updateCountries(id: number, countryCodes: string[]): Promi
   await db.query('UPDATE news SET country_codes = $1 WHERE id = $2', [countryCodes, id]);
 }
 
-// For the admin: the latest 100, published and hidden, newest first
+// For the admin: the latest 1000, published and hidden, newest first (the admin page filters and pages them)
 export async function findForAdmin(): Promise<AdminNewsItem[]> {
   const { rows } = await db.query<AdminNewsItem>(
-    `SELECT id, title, summary, url, source_name, lang, published_at, status
+    `SELECT id, title, summary, url, source_name, lang, published_at, status, country_codes
        FROM news
       ORDER BY published_at DESC
-      LIMIT 100`,
+      LIMIT 1000`,
   );
   return rows;
 }

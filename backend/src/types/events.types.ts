@@ -37,5 +37,9 @@ export interface AdminEvent {
   occurred_at: Date;
   status: EventStatus;
   type_name: string;
+  type_color: string | null;
+  country_code: string | null; // null = old events with no country
+  lng: number;
+  lat: number;
   created_by_username: string;
 }

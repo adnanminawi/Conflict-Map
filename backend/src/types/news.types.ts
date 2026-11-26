@@ -36,4 +36,5 @@ export interface NewsText {
 // What the admin sees: same as the site, plus the status
 export interface AdminNewsItem extends NewsItem {
   status: NewsStatus;
+  country_codes: string[]; // the countries the item is about, e.g. ['YE', 'SA'] ([] = none found)
 }
