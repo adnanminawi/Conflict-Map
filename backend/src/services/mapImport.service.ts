@@ -103,6 +103,7 @@ function guessAction(folder: KmlFolder, counts: ReturnType<typeof countShapes>, 
   if (isStrikeFolder(folder.name)) return 'events';
   const typed = pins.filter((p) => p.type !== null).length;
   if (pins.length > 0 && (classifyFolder(folder.name) !== null || typed >= pins.length / 2)) return 'bases';
+  if (pins.length > 0) return 'bases'; // pins with no name, type or folder: bases by default (type: military base)
   if (shapes > 0) return 'layer';
   return 'skip';
 }
@@ -115,7 +116,7 @@ function folderType(folder: KmlFolder, typeCodes: Set<string>): string {
 
 // The country of every pin (from the borders in PostGIS). Pins outside every border get the file's country.
 async function countriesOf(pins: Pin[], fileCountry: string): Promise<string[]> {
-  const found = await mapImportRepository.findCountries(pins);
+  const found = await mapImportRepository.findCountries(pins, fileCountry);
   return found.map((code) => code ?? fileCountry);
 }
 
